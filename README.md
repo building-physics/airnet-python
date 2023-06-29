@@ -2,6 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/airnet.svg)](https://pypi.org/project/airnet)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/airnet.svg)](https://pypi.org/project/airnet)
+![Python package](https://github.com/building-physics/airnet-python/actions/workflows/python-package.yml/badge.svg)
 
 -----
 
