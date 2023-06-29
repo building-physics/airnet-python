@@ -67,3 +67,10 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+[tool.ruff]
+line-length = 92
+#ignore = ["E501"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["E401"]

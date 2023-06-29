@@ -74,7 +74,7 @@ class Reader:
                 if len(data) < 4:
                     raise BadNetworkInput('Node at line %d has fewer than 5 fields' % self.line_number)
                 # node name type ht temp pres
-                if not data[1] in ['v', 'c', 'a']:
+                if data[1] not in ['v', 'c', 'a']:
                     raise BadNetworkInput('Node type "%s" at line %d is unrecognized, must be "v", "c", or "a"' % (data[1], self.line_number))
                 if data[1] == 'v':
                     return {'input_type': InputType.NODE, 'name': data[0], 'type': data[1],
@@ -215,7 +215,7 @@ class Reader:
                 raise BadNetworkInput('Element type "fan" data point at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
             pts.append({'a1': self.handle_float('fan', 'a1%d' % (i+1), data[0]),
                         'a2': self.handle_float('fan', 'a2%d' % (i+1), data[1]),
-                        'a2': self.handle_float('fan', 'a3%d' % (i+1), data[3]),
+                        'a3': self.handle_float('fan', 'a3%d' % (i+1), data[3]),
                         'a4': self.handle_float('fan', 'a4%d' % (i+1), data[4]), 
                         'mf': self.handle_float('fan', 'mf%d' % (i+1), data[4])})
         obj['pts'] = pts
