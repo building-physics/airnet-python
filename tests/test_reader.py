@@ -29,10 +29,23 @@ def test_afdata_short_lines():
                     ['element dqfr-2x25 qfr 0.310242'],
                     ['element  test      ckv  0.0'],
                     ['link   link-1   node-1   0.9   node-2   0.9'],
-                    ['link   link-1   node-1   0.0   node-2   0.0   fan-A   notnull']]
+                    ['link   link-1   node-1   0.0   node-2   0.0   fan-A   notnull'],
+                    ['node   node-1    c   notanumber   20.0    0.0']]
 
     for el in bad_elements:
       reader = airnet.Reader(iter(el))
+      results = []
+
+      try:
+          for item in reader:
+              results.append(item)
+      except airnet.BadNetworkInput:
+          pass
+
+      assert len(results) == 0
+
+    for el in bad_elements:
+      reader = airnet.Reader(iter(el), floats=False)
       results = []
 
       try:
