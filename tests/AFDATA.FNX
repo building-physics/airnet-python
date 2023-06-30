@@ -1,0 +1,24 @@
+/*subfile:  afdata.fn3  ******************************************************/
+/
+
+node   node-1    c   0.0   20.0    0.0
+node   node-2    v   0.0   20.0
+node   node-3    v   0.0   20.0
+node   node-4    v   0.0   20.0
+node   node-5    c   0.0   20.0    0.0
+
+element fan-A fan 8.1216e-06 8.1216e-06 0.00848528 0.5 ! Osborne fan A
+         1.204   764.429   5.46267  0.02   1   10000.
+         764.429 -18.2932 19.4639 -7.63948 -10000.
+element  rest1  plr  1.0e-5  1.585e-05  0.19005   0.5  ! resistance 1
+element  rest2  plr  1.0e-5  1.110e-05  0.13306   0.5  ! resistance 2
+element  rest3  plr  1.0e-5  4.092e-06  0.04907   0.5  ! resistance 3
+
+link   link-1   node-1   0.0   node-2   0.0   fan-A   null
+link   link-2   node-2   0.0   node-3   0.0   rest1   null
+link   link-3   node-3   0.0   node-4   0.0   fan-A   null
+link   link-4   node-3   0.0   node-5   0.0   rest3   null
+link   link-5   node-4   0.0   node-5   0.0   rest2   null
+
+*********
+

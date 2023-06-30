@@ -66,7 +66,7 @@ class Reader:
                 if self.title:
                     raise BadNetworkInput('Found additional title at line %d' % self.line_number)
                 else:
-                    self.title = rest.lstrip()
+                    self.title = rest.strip()
                     return {'input_type': InputType.TITLE, 'title': self.title}
             
             if item_type == 'node':
@@ -120,7 +120,6 @@ class Reader:
     def read_plr(self, name, input_string):
         # element name plr init lam turb expt
         data = input_string.split()
-        print(data)
         if len(data) < 4:
             raise BadNetworkInput('Element type "plr" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
         return {'input_type': InputType.ELEMENT, 'type': ElementType.PLR, 'name': name,
