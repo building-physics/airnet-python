@@ -34,9 +34,9 @@ airnetsim = "airnet.model:simulate"
 airnet_simulator = "airnet.model:gui_simulate"
 
 [project.urls]
-Documentation = "https://github.com/unknown/airnet#readme"
-Issues = "https://github.com/unknown/airnet/issues"
-Source = "https://github.com/unknown/airnet"
+Documentation = "https://github.com/building-physics/airnet-python#readme"
+Issues = "https://github.com/building-physics/airnet-python/issues"
+Source = "https://github.com/building-physics/airnet-python"
 
 [tool.hatch.version]
 path = "src/airnet/__about__.py"
