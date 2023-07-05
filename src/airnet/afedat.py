@@ -3,15 +3,25 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import math
 
-class AirflowElement:
-    pass
-
-class Afe_Plr(AirflowElement):
+class Afe_Plr:
     def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5):
         self.init = init # laminar initialization coefficient
         self.lam = lam # laminar flow coefficient
         self.turb = turb # turbulent flow coefficient
         self.expt = expt # turbulent flow exponent
+
+    def type(self):
+        return 'plr'
+
+    def linearize(self, link, pdrop):
+        if pdrop > 0.0:
+            df = self.init * link.node0.dvisc
+        elif pdrop < 0.0:
+            df = self.init * link.node1.dvisc
+        else:
+            cdm = self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
+        f = -df * pdrop
+        return f, df
 
     def calculate(self, link, pdrop):
         if pdrop > 0.0:
@@ -38,9 +48,9 @@ class Afe_Plr(AirflowElement):
             cdm = 0.5 * self.lam * (link.node0.dvisc + link.node1.dvisc) # original code used node0
             f = fl = ft = 0.0
             df = cdm
-        return f, 0.0, df, 0.0
+        return 1, f, 0.0, df, 0.0
 
-class Afe_Dwc(AirflowElement):
+class Afe_Dwc:
     def __init__(self, length = 0.0, hdia = 0.0, area = 0.0, rough = 0.0, tdlc = 0.0,
                  lflc = 0.0, ldlc = 0.0, linit = 0.0, ed = 0.0, ld = 0.0, f = 0.0):
         self.length = length # length of the duct (m)
@@ -55,12 +65,18 @@ class Afe_Dwc(AirflowElement):
         self.ld = ld # relative length (length/hdia)
         self.f = f # Darcy friction factor
 
-class Afe_Qfr(AirflowElement):
+    def type(self):
+        return 'dwc'
+
+class Afe_Qfr:
     def __init__(self, a = 0.0, b = 0.0):
         self.a = a # pdrop = a*f + b*f*f
-        self.b = b # 
+        self.b = b #
 
-class Afe_Dor(AirflowElement):
+    def type(self):
+        return 'qfr'
+
+class Afe_Dor(Afe_Plr):
     def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5, dtmin = 0.0,
                  ht = 0.0, wd = 0.0, cd = 0.0):
         self.init = init # laminar initialization coefficient
@@ -71,12 +87,73 @@ class Afe_Dor(AirflowElement):
         self.ht = ht # height of doorway (m)
         self.wd = wd # width of doorway (m)
         self.cd = cd # discharge coefficient
+    
+    def type(self):
+        return 'dor'
 
-class Afe_Cfr(AirflowElement):
+    def linearize(self, link, pdrop):
+        drho = link.node0.density - link.node1.density
+        gdrho = 9.8 * drho
+        return super().linearize(link, pdrop - 0.5 * self.ht * gdrho)
+
+    def calculate(self, link, pdrop):
+        f1 = 0.0 # computed flow rate
+        df1 = 0.0 # partial derivative: df/dp
+        f2 = 0.0 # computed flow rate
+        df2 = 0.0 # partial derivative: df/dp
+
+        drho = link.node0.density - link.node1.density
+        dt = link.node0.temperature - link.node1.temperature
+        gdrho = 9.8 * drho
+
+        if abs(dt) < self.dtmin:
+            return super().calculate(link, pdrop - 0.5 * self.ht * gdrho)
+        else:
+            y = pdrop / gdrho # Possible two-way flow
+
+            c = 1.414214 * self.wd * self.cd
+            df0 = c * math.sqrt(abs(pdrop))/abs(gdrho)
+            f0 = 0.666667 * c * math.sqrt(abs(gdrho*y))*abs(y)
+            dfh = c * math.sqrt(abs((self.ht-y)/gdrho))
+            fh = 0.666667 * dfh * abs(gdrho*(self.ht-y))
+            nf = 1
+
+            if y < 0.0: # One-way flow (1 to 0)
+                if drho > 0.0:
+                    f1 = -link.node1.sqrt_density * abs(fh-f0)
+                    df1 = link.node1.sqrt_density * abs(dfh-df0)
+                else:
+                    f1 =  link.node0.sqrt_density * abs(fh-f0)
+                    df1 = link.node0.sqrt_density * abs(dfh-df0)
+            elif y > self.ht: # One-way flow (0 to 1)
+                if drho > 0.0:
+                    f1 =  link.node0.sqrt_density * abs(fh-f0)
+                    df1 = link.node0.sqrt_density * abs(dfh-df0)
+                else:
+                    f1 = -link.node1.sqrt_density * abs(fh-f0)
+                    df1 = link.node1.sqrt_density * abs(dfh-df0)
+            else: # Two-way flow
+                nf = 2
+                if drho > 0.0:
+                    f1 = -link.node1.sqrt_density * fh
+                    df1 = link.node1.sqrt_density * dfh
+                    f2 =  link.node0.sqrt_density * f0
+                    df2 = link.node0.sqrt_density * df0
+                else:
+                    f1 =  link.node0.sqrt_density * fh
+                    df1 = link.node0.sqrt_density * dfh
+                    f2 = -link.node1.sqrt_density * f0
+                    df2 = link.node1.sqrt_density * df0
+        return nf, f1, f2, df1, df2
+
+class Afe_Cfr:
     def __init__(self, flow = 0.0):
         self.flow = flow # flow rate (kg/s)
+    
+    def type(self):
+        return 'cfr'
 
-class Afe_Fan(AirflowElement):
+class Afe_Fan(Afe_Plr):
     def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5, rdens = 0.0,
                  fdf = 0.0, sop = 0.0, off = 0.0, mf1 = 0.0, pts = None): #prl = None, fpc = None):
         self.init = init # laminar initialization coefficient
@@ -90,23 +167,35 @@ class Afe_Fan(AirflowElement):
         #self.*prl = *prl # vector of pressure range limits [0..nfr]
         #self.**fpc = **fpc # array of fan performance coefficients [1..nfr][0..3]
 
-class Afe_Cpf(AirflowElement):
+    def type(self):
+        return 'fan'
+
+class Afe_Cpf:
     def __init__(self, upo = 0.0, prmin = 0.0, ftyp = 0.0):
         self.upo = upo # useful power output (W)
         self.prmin = prmin # minimum pressure rise (Pa)
         self.ftyp = ftyp # typical mass flow rate (kg/s)
 
-class Afe_Ckv(AirflowElement):
+    def type(self):
+        return 'cpf'
+
+class Afe_Ckv:
     def __init__(self, dp0 = 0.0, coef = 0.0):
         self.dp0 = dp0 # cut-off pressure
         self.coef = coef # flow coefficient
 
-class Afe_Prv(AirflowElement):
+    def type(self):
+        return 'ckv'
+
+class Afe_Prv:
     def __init__(self, fpos = 0.0, cpos = 0.0, fneg = 0.0, cneg = 0.0):
         self.fpos = fpos # design flow rate - positive direction (kg/s)
         self.cpos = cpos # positive pressure coefficient
         self.fneg = fneg # design flow rate - negative direction (kg/s)
         self.cneg = cneg # negitive pressure coefficient
+
+    def type(self):
+        return 'prv'
 
 object_lookup = {'plr': Afe_Plr, 'dwc': Afe_Dwc, 'qfr': Afe_Qfr,
                  'dor': Afe_Dor, 'cfr': Afe_Cfr, 'fan': Afe_Fan,

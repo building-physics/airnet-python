@@ -77,6 +77,22 @@ class Model:
         assert count == len(self.variable_nodes)
         self.size = count
 
+    def summary(self):
+        string = 'Title: %s\n\nElements:\n=========\n' % self.title
+        elements = {}
+        for el in self.elements.values():
+            tag = el.type()
+            if tag in elements:
+                elements[tag] += 1
+            else:
+                elements[tag] = 1
+        for key, value in elements.items():
+            string += '%s: %d\n' % (key, value)
+
+        string += '\nNodes: %s\n\nLinks: %s\n' % (len(self.nodes), len(self.links))
+        string += '\nSystem size: %d x %x\n' % (len(self.variable_nodes), len(self.variable_nodes))
+        return string
+
     def set_properties(self):
         for node in self.variable_nodes:
             node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
@@ -109,7 +125,7 @@ def summarize_input():
     for item in reader:
         items.append(item)
     if args.verbose:
-        print('Closing input file "%s"...' % args.input)
+        print('Closing input file "%s".' % args.input)
     fp.close()
 
     if reader.title:
@@ -163,10 +179,13 @@ def simulate():
     for item in reader:
         items.append(item)
     if args.verbose:
-        print('Closing input file "%s"...' % args.input)
+        print('Closing input file "%s".' % args.input)
     fp.close()
 
     model = Model(items)
+    
+    if args.verbose:
+        print(model.summary())
 
 def gui_simulate():
     pass

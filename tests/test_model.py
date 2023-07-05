@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 import airnet
-from unittest import mock
-import argparse
 
 AFDATA_PL2 = '''/*subfile:  afdata.pl2  ******************************************************/
 /
@@ -39,3 +37,6 @@ def test_model_creation():
     assert len(model.nodes) == 4
     assert len(model.links) == 3
     assert len(model.elements) == 7
+
+    for el in model.elements.values():
+        assert el.type() == 'plr'
