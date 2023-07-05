@@ -4,7 +4,7 @@
 import argparse
 import os
 import math
-import scipy
+import scipy.sparse
 import numpy
 from .afedat import object_lookup
 from .reader import Reader, InputType
@@ -157,6 +157,7 @@ class Model:
     def initialize(self):
         self.set_properties()
         self.A.data.fill(0.0)
+        self.x.fill(0.0)
         for link in self.links:
             if link.node0.variable:
                 c = link.element.linearize(link)
@@ -170,6 +171,7 @@ class Model:
                     self.A[link.node1, link.node0] -= c
                 else:
                     self.x += c*link.node1.pressure
+        
 
 
 def summarize_input():
