@@ -12,15 +12,15 @@ class InputType(enum.Enum):
     ELEMENT = 2
     LINK = 3
 
-class ElementType(enum.Enum):
-    PLR = 0
-    DWC = 1
-    DOR = 2
-    CFR = 3
-    FAN = 4
-    CPF = 5
-    QFR = 6
-    CKV = 7
+#class ElementType(enum.Enum):
+#    PLR = 0
+#    DWC = 1
+#    DOR = 2
+#    CFR = 3
+#    FAN = 4
+#    CPF = 5
+#    QFR = 6
+#    CKV = 7
 
 class Reader:
     def __init__(self, fp, floats=True):
@@ -122,7 +122,7 @@ class Reader:
         data = input_string.split()
         if len(data) < 4:
             raise BadNetworkInput('Element type "plr" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
-        return {'input_type': InputType.ELEMENT, 'type': ElementType.PLR, 'name': name,
+        return {'input_type': InputType.ELEMENT, 'type': 'plr', 'name': name,
                 'init': self.handle_float('plr', 'init', data[0]), 'lam': self.handle_float('plr', 'lam', data[1]),
                 'turb': self.handle_float('plr', 'turb', data[2]), 'expt': self.handle_float('plr', 'expt', data[3])}
 
@@ -132,7 +132,7 @@ class Reader:
         data = input_string.split()
         if len(data) < 4:
             raise BadNetworkInput('Element type "dwc" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
-        obj = {'input_type': InputType.ELEMENT, 'type': ElementType.DWC, 'name': name,
+        obj = {'input_type': InputType.ELEMENT, 'type': 'dwc', 'name': name,
                'len': self.handle_float('dwc', 'len', data[0]), 
                'dh': self.handle_float('dwc', 'dh', data[1]), 'area': self.handle_float('dwc', 'area', data[2]),
                'rgh': self.handle_float('dwc', 'rgh', data[3])}
@@ -154,7 +154,7 @@ class Reader:
         data = input_string.split()
         if len(data) < 4:
             raise BadNetworkInput('Element type "dor" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
-        obj = {'input_type': InputType.ELEMENT, 'type': ElementType.DOR, 'name': name,
+        obj = {'input_type': InputType.ELEMENT, 'type': 'dor', 'name': name,
                'init': self.handle_float('dor', 'init', data[0]), 'lam': self.handle_float('dor', 'lam', data[1]),
                'turb': self.handle_float('dor', 'turb', data[2]), 'expt': self.handle_float('dor', 'expt', data[3])}
         try:
@@ -175,19 +175,19 @@ class Reader:
         string = input_string.partition(' ')[0].strip()
         if not string:
             raise BadNetworkInput('Element type "cfr" at line %d has only 3 fields and cannot be a legal element' % self.line_number)
-        return {'input_type': InputType.ELEMENT, 'type': ElementType.CFR, 'name': name,
+        return {'input_type': InputType.ELEMENT, 'type': 'cfr', 'name': name,
                 'flow': self.handle_float('cfd', 'flow', string)}
     
     def read_fan(self, name, input_string):
         # element name fan init lam turb expt
-        #         rdens fdf sop ltt nr mfl
+        #         rdens fdf sop off nr mfl
         #         all al2 al3 a14 mf2
         #         a2l a22 a23 a24 mf3
         #         ... ... ... ... mfn
         data = input_string.split()
         if len(data) < 7:
             raise BadNetworkInput('Element type "fan" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
-        obj = {'input_type': InputType.ELEMENT, 'type': ElementType.FAN, 'name': name,
+        obj = {'input_type': InputType.ELEMENT, 'type': 'fan', 'name': name,
                'init': self.handle_float('fan', 'init', data[0]), 'lam': self.handle_float('fan', 'lam', data[1]),
                'turb': self.handle_float('fan', 'turb', data[2]), 'expt': self.handle_float('fan', 'expt', data[3])}
         try:
@@ -200,9 +200,9 @@ class Reader:
         obj['rdens'] = self.handle_float('fan', 'rdens', data[0]) 
         obj['fdf'] = self.handle_float('fan', 'fdf', data[1])
         obj['sop'] = self.handle_float('fan', 'sop', data[2]) 
-        obj['ltt'] = self.handle_float('fan', 'ltt', data[3])
+        obj['off'] = self.handle_float('fan', 'off', data[3])
         nr = int(data[4]) 
-        obj['mfl'] = self.handle_float('fan', 'mfl', data[5])
+        obj['mf1'] = self.handle_float('fan', 'mfl', data[5])
         pts = []
         for i in range(nr):
             try:
@@ -225,7 +225,7 @@ class Reader:
         data = input_string.split()
         if len(data) < 3:
             raise BadNetworkInput('Element type "cpf" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
-        return {'input_type': InputType.ELEMENT, 'type': ElementType.CPF, 'name': name,
+        return {'input_type': InputType.ELEMENT, 'type': 'cpf', 'name': name,
                 'upo': self.handle_float('cpf', 'upo', data[0]),
                 'prmin': self.handle_float('cpf', 'prmin', data[1]), 'ftyp': self.handle_float('cpf', 'ftyp', data[2])}
     
@@ -234,7 +234,7 @@ class Reader:
         data = input_string.split()
         if len(data) < 2:
             raise BadNetworkInput('Element type "qfr" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
-        return {'input_type': InputType.ELEMENT, 'type': ElementType.QFR, 'name': name, 
+        return {'input_type': InputType.ELEMENT, 'type': 'qfr', 'name': name, 
                 'a': self.handle_float('qfr', 'a', data[0]), 'b': self.handle_float('qfr', 'b', data[1])}
     
     def read_ckv(self, name, input_string):
@@ -242,5 +242,5 @@ class Reader:
         data = input_string.split()
         if len(data) < 2:
             raise BadNetworkInput('Element type "ckv" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
-        return {'input_type': InputType.ELEMENT, 'type': ElementType.CKV, 'name': name, 
+        return {'input_type': InputType.ELEMENT, 'type': 'ckv', 'name': name, 
                 'dp0': self.handle_float('ckv', 'dp0', data[0]), 'coef': self.handle_float('ckv', 'coef', data[1])}

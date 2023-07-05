@@ -180,7 +180,7 @@ def test_afdata_dr1():
 
     assert len(results) == 16
     assert results[2]['input_type'] == airnet.InputType.NODE
-    assert results[4]['type'] == airnet.ElementType.DOR
+    assert results[4]['type'] == 'dor'
 
 AFDATA_DW1 = '''/*subfile:  afdata.dw1  ******************************************************/
 /
@@ -236,7 +236,7 @@ def test_afdata_cf1():
 
     assert len(results) == 8
     assert results[2]['input_type'] == airnet.InputType.NODE
-    assert results[5]['type'] == airnet.ElementType.CFR
+    assert results[5]['type'] == 'cfr'
 
 
 AFDATA_FN1 = '''/*subfile:  afdata.fn1  ******************************************************/
@@ -295,7 +295,7 @@ def test_afdata_fn1():
         results.append(item)
 
     assert len(results) == 8
-    assert results[4]['type'] == airnet.ElementType.FAN
+    assert results[4]['type'] == 'fan'
     assert results[5]['expt'] == 0.5
 
 AFDATA_FN2 = '''/*subfile:  afdata.fn2  ******************************************************/
