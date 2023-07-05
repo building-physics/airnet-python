@@ -40,3 +40,8 @@ def test_model_creation():
 
     for el in model.elements.values():
         assert el.type() == 'plr'
+
+    assert not model.nodes['node-1'].variable
+    assert model.nodes['node-2'].variable
+    assert model.nodes['node-3'].variable
+    assert not model.nodes['node-4'].variable

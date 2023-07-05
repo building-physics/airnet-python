@@ -4,6 +4,8 @@
 import argparse
 import os
 import math
+import scipy
+import numpy
 from .afedat import object_lookup
 from .reader import Reader, InputType
 
@@ -24,7 +26,7 @@ class Node:
 
 class Link:
     def __init__(self, name=None, node0=None, ht0=0.0, node1=None, ht1=0.0, element=None,
-                 wind=None, wpmod=0.0, mult=1.0):
+                 wind=None, wpmod=0.0, mult=1.0, flipped=False):
         self.name = name
         self.node0 = node0
         self.node1 = node1
@@ -33,7 +35,11 @@ class Link:
         self.element = element
         self.wind = wind
         self.wpmod = wpmod
-        self.mult = mult
+        self.multiplier = mult
+        self.flipped = flipped
+
+class BadNetwork(Exception):
+    pass
 
 class Model:
     def __init__(self, network_input, element_lookup = object_lookup, node_object=Node,
@@ -48,7 +54,7 @@ class Model:
             if el['input_type'] == InputType.TITLE:
                 self.title = el['title']
             elif el['input_type'] == InputType.NODE:
-                variable = el.pop('type', 'c') == 'c'
+                variable = el.pop('type', 'c') == 'v'
                 el.pop('input_type')
                 self.nodes[el['name']] = node_object(variable=variable, **el)
             elif el['input_type'] == InputType.LINK:
@@ -60,12 +66,21 @@ class Model:
                 name = el.pop('name')
                 self.elements[name] = element_lookup[type](**el)
         for link in links:
+            flip = False
             node0 = self.nodes[link.pop('node-1')]
             ht0 = link.pop('ht-1')
             node1 = self.nodes[link.pop('node-2')]
             ht1 = link.pop('ht-2')
+            if not node0.variable:
+                if node1.variable:
+                    flip = True
             element = self.elements[link.pop('element')]
-            self.links.append(link_object(node0=node0, ht0=ht0, node1=node1, ht1=ht1, element=element, **link))
+            if flip:
+                self.links.append(link_object(node0=node1, ht0=ht1, node1=node0, ht1=ht0,
+                                              element=element, **link, flipped=flip))
+            else:
+                self.links.append(link_object(node0=node0, ht0=ht0, node1=node1, ht1=ht1,
+                                              element=element, **link, flipped=flip))
         # Figure out the size of the matrix
         self.variable_nodes = []
         count = 0
@@ -76,6 +91,45 @@ class Model:
                 self.variable_nodes.append(node)
         assert count == len(self.variable_nodes)
         self.size = count
+        row = []
+        col = []
+        data = []
+        for link in self.links:
+            if link.node0.variable:
+                # diagonal term
+                row.append(link.node0.index)
+                col.append(link.node0.index)
+                data.append(1.0)
+                if link.node1.variable:
+                    # diagonal term
+                    row.append(link.node1.index)
+                    col.append(link.node1.index)
+                    data.append(1.0)
+                    # off diagonal terms
+                    row.append(link.node0.index)
+                    col.append(link.node1.index)
+                    data.append(1.0)
+                    # off diagonal terms
+                    row.append(link.node1.index)
+                    col.append(link.node0.index)
+                    data.append(1.0)
+
+        matrix = scipy.sparse.coo_matrix((numpy.array(data, dtype=numpy.double),
+                                          (numpy.array(row), numpy.array(col))),
+                                          shape=(count, count))
+        self.A = scipy.sparse.csr_matrix(matrix)
+        self.x = numpy.zeros(self.size, dtype=numpy.double)
+
+        # Check for disconnected nodes
+        problems = []
+        for i,el in enumerate(self.A.diagonal()):
+            if el < 1:
+                for node in self.nodes.values():
+                    if node.index == i:
+                        problems.append(node)
+                        break
+        if problems:
+           raise BadNetwork('Disconnected nodes found: %s' % ', '.join([el.name for el in problems]))
 
     def summary(self):
         string = 'Title: %s\n\nElements:\n=========\n' % self.title
@@ -99,6 +153,24 @@ class Model:
             node.sqrt_density = math.sqrt(node.density)
             node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
             node.dvisc = node.density / node.viscosity
+
+    def initialize(self):
+        self.set_properties()
+        self.A.data.fill(0.0)
+        for link in self.links:
+            if link.node0.variable:
+                c = link.element.linearize(link)
+                # diagonal term
+                self.A[link.node0, link.node0] += c
+                if link.node1.variable:
+                    # diagonal term
+                    self.A[link.node0, link.node0] += c
+                    # off diagonal terms
+                    self.A[link.node0, link.node1] -= c
+                    self.A[link.node1, link.node0] -= c
+                else:
+                    self.x += c*link.node1.pressure
+
 
 def summarize_input():
     parser = argparse.ArgumentParser(description='Summarize an AIRNET network input file.')

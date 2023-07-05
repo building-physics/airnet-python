@@ -13,21 +13,14 @@ class Afe_Plr:
     def type(self):
         return 'plr'
 
-    def linearize(self, link, pdrop):
-        if pdrop > 0.0:
-            df = self.init * link.node0.dvisc
-        elif pdrop < 0.0:
-            df = self.init * link.node1.dvisc
-        else:
-            cdm = self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
-        f = -df * pdrop
-        return f, df
+    def linearize(self, link):
+        return self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
 
     def calculate(self, link, pdrop):
         if pdrop > 0.0:
             cdm = self.lam * link.node0.dvisc
             fl = cdm * pdrop
-            ft = self.turb * link.node0.sqrtd * math.pow(pdrop, self.expt)
+            ft = self.turb * link.node0.sqrt_density * math.pow(pdrop, self.expt)
             if fl <= ft:
                 f = fl
                 df = cdm
@@ -37,7 +30,7 @@ class Afe_Plr:
         elif pdrop < 0.0:
             cdm = self.lam * link.node1.dvisc
             fl = cdm * pdrop
-            ft = -self.turb * link.node1.sqrtd * math.pow(-pdrop, self.expt)
+            ft = -self.turb * link.node1.sqrt_density * math.pow(-pdrop, self.expt)
             if fl >= ft:
                 f = fl
                 df = cdm
@@ -90,11 +83,6 @@ class Afe_Dor(Afe_Plr):
     
     def type(self):
         return 'dor'
-
-    def linearize(self, link, pdrop):
-        drho = link.node0.density - link.node1.density
-        gdrho = 9.8 * drho
-        return super().linearize(link, pdrop - 0.5 * self.ht * gdrho)
 
     def calculate(self, link, pdrop):
         f1 = 0.0 # computed flow rate
