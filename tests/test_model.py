@@ -35,6 +35,7 @@ def test_model_creation():
 
     model = airnet.Model(items)
     assert len(model.nodes) == 4
+    assert len(model.variable_nodes) == 2
     assert len(model.links) == 3
     assert len(model.elements) == 7
 
@@ -45,3 +46,13 @@ def test_model_creation():
     assert model.nodes['node-2'].variable
     assert model.nodes['node-3'].variable
     assert not model.nodes['node-4'].variable
+
+    model.set_properties()
+    assert model.initialize(maxiter=10)
+    assert model.nodes['node-1'].pressure == 0.0
+    assert abs(model.nodes['node-2'].pressure + 40.0) < 1.0e-12
+    assert abs(model.nodes['node-3'].pressure + 60.0) < 1.0e-12
+    assert model.nodes['node-4'].pressure == -100.0
+    assert model.links[0].flipped
+    assert abs(model.links[0].flow0 + model.links[1].flow0) < 1.0e-12
+    assert abs(model.links[1].flow0 - model.links[2].flow0) < 1.0e-12

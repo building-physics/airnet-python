@@ -37,6 +37,9 @@ class Link:
         self.wpmod = wpmod
         self.multiplier = mult
         self.flipped = flipped
+        self.flow0 = 0.0
+        self.flow1 = 0.0
+        self.pdrop = 0.0
 
 class BadNetwork(Exception):
     pass
@@ -118,7 +121,7 @@ class Model:
                                           (numpy.array(row), numpy.array(col))),
                                           shape=(count, count))
         self.A = scipy.sparse.csr_matrix(matrix)
-        self.x = numpy.zeros(self.size, dtype=numpy.double)
+        self.x = numpy.zeros([self.size, 1], dtype=numpy.double)
 
         # Check for disconnected nodes
         problems = []
@@ -154,25 +157,84 @@ class Model:
             node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
             node.dvisc = node.density / node.viscosity
 
-    def initialize(self):
-        self.set_properties()
+    def initialize(self, maxiter=100):
         self.A.data.fill(0.0)
         self.x.fill(0.0)
         for link in self.links:
             if link.node0.variable:
                 c = link.element.linearize(link)
                 # diagonal term
-                self.A[link.node0, link.node0] += c
+                self.A[link.node0.index, link.node0.index] += c
                 if link.node1.variable:
                     # diagonal term
-                    self.A[link.node0, link.node0] += c
+                    self.A[link.node1.index, link.node1.index] += c
                     # off diagonal terms
-                    self.A[link.node0, link.node1] -= c
-                    self.A[link.node1, link.node0] -= c
+                    self.A[link.node0.index, link.node1.index] -= c
+                    self.A[link.node1.index, link.node0.index] -= c
                 else:
-                    self.x += c*link.node1.pressure
-        
+                    self.x[link.node0.index] += c*link.node1.pressure
+        self.x, info = scipy.sparse.linalg.cg(self.A, self.x, maxiter=maxiter)
+        if info == 0:
+            # Update the nodal pressures
+            for node in self.variable_nodes:
+                node.pressure = self.x[node.index]
+            # Update the flows:
+            for link in self.links:
+                c = link.element.linearize(link)
+                link.flow0 = c*(link.node0.pressure-link.node1.pressure)
+                link.flow1 = 0.0
+            return True
+        return False
+    
+    def compute_pressure_drops(self):
+        for link in self.links:
+            # Stack contribution
+            sp0 = -9.80 * link.node0.density * link.ht0
+            sp1 =  9.80 * link.node1.density * link.ht1
+            dhx = (link.node0.ht - link.node1.ht) + (link.ht0 - link.ht1)
+            spx = 0.0
+            if dhx != 0.0:
+                if link.flow0 > 0.0:
+                    spx = 9.80 * link.node0.density * dhx
+                elif link.flow0 < 0.0:
+                    spx = 9.80 * link.node1.density * dhx
+                else:
+                    spx = 4.90 * (link.node0.dens + link.node1.dens) * dhx
+            # Wind pressure contribution goes here
+            link.pdrop = link.node0.pressure - link.node1.pressure + sp0 + sp1 + spx
 
+    def air_movement(self, maxiter=100, max_subiter=100, tolerance=1.0e-8):
+        self.A.data.fill(0.0)
+        self.x.fill(0.0)
+        self.compute_pressure_drops()
+        for iter in range(1,maxiter+1):
+            for link in self.links:
+                if link.node0.variable:
+                    nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(link, link.pdrop)
+                    if nf == 1:
+                        # diagonal term
+                        self.A[link.node0.index, link.node0.index] += df0
+                        self.x[link.node0.index] += link.flow0
+                        if link.node1.variable:
+                            # diagonal term
+                            self.A[link.node1.index, link.node1.index] += df0
+                            self.x[link.node1.index] -= link.flow0
+                            # off diagonal terms
+                            self.A[link.node0.index, link.node1.index] -= df0
+                            self.A[link.node1.index, link.node0.index] -= df0
+                    else:
+                        pass # Do this later...
+            maxf = max(self.x, key=abs)
+            if maxf <= tolerance:
+                return iter
+            self.x, info = scipy.sparse.linalg.cg(self.A, self.x, maxiter=max_subiter)
+            if info == 0:
+                # Update the nodal pressures
+                for node in self.variable_nodes:
+                    node.pressure = self.x[node.index]
+            else:
+                raise 'STOPSTOPSTOP'
+            
 
 def summarize_input():
     parser = argparse.ArgumentParser(description='Summarize an AIRNET network input file.')
