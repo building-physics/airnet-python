@@ -56,3 +56,6 @@ def test_model_creation():
     assert model.links[0].flipped
     assert abs(model.links[0].flow0 + model.links[1].flow0) < 1.0e-12
     assert abs(model.links[1].flow0 - model.links[2].flow0) < 1.0e-12
+
+    model.set_variable_properties()
+    model.air_movement()

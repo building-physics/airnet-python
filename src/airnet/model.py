@@ -150,8 +150,15 @@ class Model:
         string += '\nSystem size: %d x %x\n' % (len(self.variable_nodes), len(self.variable_nodes))
         return string
 
-    def set_properties(self):
+    def set_variable_properties(self):
         for node in self.variable_nodes:
+            node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
+            node.sqrt_density = math.sqrt(node.density)
+            node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
+            node.dvisc = node.density / node.viscosity
+
+    def set_properties(self):
+        for node in self.nodes.values():
             node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
             node.sqrt_density = math.sqrt(node.density)
             node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
@@ -191,7 +198,7 @@ class Model:
             # Stack contribution
             sp0 = -9.80 * link.node0.density * link.ht0
             sp1 =  9.80 * link.node1.density * link.ht1
-            dhx = (link.node0.ht - link.node1.ht) + (link.ht0 - link.ht1)
+            dhx = (link.node0.height - link.node1.height) + (link.ht0 - link.ht1)
             spx = 0.0
             if dhx != 0.0:
                 if link.flow0 > 0.0:
@@ -201,16 +208,18 @@ class Model:
                 else:
                     spx = 4.90 * (link.node0.dens + link.node1.dens) * dhx
             # Wind pressure contribution goes here
-            link.pdrop = link.node0.pressure - link.node1.pressure + sp0 + sp1 + spx
+            link.pdrop =  sp0 + sp1 + spx
 
     def air_movement(self, maxiter=100, max_subiter=100, tolerance=1.0e-8):
-        self.A.data.fill(0.0)
-        self.x.fill(0.0)
         self.compute_pressure_drops()
         for iter in range(1,maxiter+1):
+            self.A.data.fill(0.0)
+            self.x.fill(0.0)
             for link in self.links:
                 if link.node0.variable:
-                    nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(link, link.pdrop)
+                    pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
+                    nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(link, pdrop)
+                    print(link.name, nf, link.flow0, link.flow1, df0, df1)
                     if nf == 1:
                         # diagonal term
                         self.A[link.node0.index, link.node0.index] += df0
@@ -228,12 +237,14 @@ class Model:
             if maxf <= tolerance:
                 return iter
             self.x, info = scipy.sparse.linalg.cg(self.A, self.x, maxiter=max_subiter)
+            info = 0
             if info == 0:
-                # Update the nodal pressures
+                # Update the nodal pressures, flows are set above
                 for node in self.variable_nodes:
-                    node.pressure = self.x[node.index]
+                    node.pressure -= self.x[node.index]
             else:
                 raise 'STOPSTOPSTOP'
+        return maxiter
             
 
 def summarize_input():
