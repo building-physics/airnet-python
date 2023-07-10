@@ -14,7 +14,7 @@ class Afe_Plr:
         return 'plr'
 
     def linearize(self, link):
-        return self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
+        return 0.5 * self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
 
     def calculate(self, link, pdrop):
         if pdrop > 0.0:

@@ -4,7 +4,7 @@
 import argparse
 import os
 import math
-import scipy.sparse
+import scipy
 import numpy
 from .afedat import object_lookup
 from .reader import Reader, InputType
@@ -22,6 +22,13 @@ class Node:
         self.viscosity = 0.0
         self.sqrt_density = 0.0
         self.dvisc = 0.0 # Density divided by viscosity
+    def copy_state(self, other):
+        self.temperature = other.temperature
+        self.pressure = other.pressure
+        self.density = other.density
+        self.viscosity = other.viscosity
+        self.sqrt_density = other.sqrt_density
+        self.dvisc = other.dvisc
 
 
 class Link:
@@ -122,6 +129,8 @@ class Model:
                                           shape=(count, count))
         self.A = scipy.sparse.csr_matrix(matrix)
         self.x = numpy.zeros([self.size, 1], dtype=numpy.double)
+
+        self.set_properties()
 
         # Check for disconnected nodes
         problems = []
