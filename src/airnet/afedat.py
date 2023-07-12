@@ -13,10 +13,10 @@ class Afe_Plr:
     def type(self):
         return 'plr'
 
-    def linearize(self, link):
+    def linearize(self, link, multiplier=1.0, control=1.0):
         return self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
 
-    def calculate(self, link, pdrop):
+    def calculate(self, link, pdrop, multiplier=1.0, control=1.0):
         if pdrop > 0.0:
             cdm = self.lam * link.node0.dvisc
             fl = cdm * pdrop
@@ -84,7 +84,7 @@ class Afe_Dor(Afe_Plr):
     def type(self):
         return 'dor'
 
-    def calculate(self, link, pdrop):
+    def calculate(self, link, pdrop, multiplier=1.0, control=1.0):
         f1 = 0.0 # computed flow rate
         df1 = 0.0 # partial derivative: df/dp
         f2 = 0.0 # computed flow rate
