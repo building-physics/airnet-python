@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 import airnet
+import math
 
 AFDATA_PL2 = '''/*subfile:  afdata.pl2  ******************************************************/
 /
@@ -26,6 +27,10 @@ link   link-3   node-3   0.0   node-4   0.0   orf-0.0001   null
 
 *********'''
 
+class AltModel(airnet.Model):
+    def set_variable_properties(self):
+        pass
+
 def test_model_creation():
     reader = airnet.Reader(iter(AFDATA_PL2.splitlines()))
     items = []
@@ -33,7 +38,7 @@ def test_model_creation():
     for item in reader:
         items.append(item)
 
-    model = airnet.Model(items)
+    model = AltModel(items)
     assert len(model.nodes) == 4
     assert len(model.variable_nodes) == 2
     assert len(model.links) == 3
@@ -47,12 +52,61 @@ def test_model_creation():
     assert model.nodes['node-3'].variable
     assert not model.nodes['node-4'].variable
 
-    model.set_properties()
+    # Mess with the properties so that the properties are the same so 
+    # we can do simple tests.
+    node_4_pressure = model.nodes['node-4'].pressure
+    node_1 = model.nodes['node-1']
+    for node in model.nodes.values():
+        node.copy_state(node_1)
+    model.nodes['node-4'].pressure = node_4_pressure
+
     assert model.initialize(maxiter=10)
-    assert model.nodes['node-1'].pressure == 0.0
-    assert abs(model.nodes['node-2'].pressure + 40.0) < 1.0e-12
-    assert abs(model.nodes['node-3'].pressure + 60.0) < 1.0e-12
-    assert model.nodes['node-4'].pressure == -100.0
-    assert model.links[0].flipped
+
+    # Compute the flow we should get (playing a bit loose with the state props involved)
+    # f = C1(p1-p2) = C2(p2-p3) = C1(p3-p4) = Ce(p1-p4) = Ce((p1-p2) + (p2-p3) + (p3-p4))
+    # f = Ce*f(1/C1 + 1/C2 + 1/C3)
+    # 1/Ce = 1/C1 + 1/C2 + 1/C3
+    Ce = model.nodes['node-1'].dvisc/(1.0/model.links[0].element.init + 1.0/model.links[1].element.init + 1.0/model.links[2].element.init)
+    f = Ce * 100.0
+    assert abs(model.links[0].flow0 + f) < 1.0e-12
     assert abs(model.links[0].flow0 + model.links[1].flow0) < 1.0e-12
     assert abs(model.links[1].flow0 - model.links[2].flow0) < 1.0e-12
+
+    # Compute the pressure drops (playing a bit loose with the state props involved)
+    # f = C1(p1-p2) => p2 = p1 - f/C1
+    # f = C2(p2-p3) => p3 = p2 - f/C2
+    assert model.nodes['node-1'].pressure == 0.0
+    assert abs(model.nodes['node-2'].pressure - model.nodes['node-1'].pressure + f/(model.links[0].element.init * model.nodes['node-1'].dvisc)) < 1.0e-12
+    assert abs(model.nodes['node-3'].pressure - model.nodes['node-2'].pressure + f/(model.links[1].element.init * model.nodes['node-1'].dvisc)) < 1.0e-12
+    assert model.nodes['node-4'].pressure == -100.0
+    assert model.links[0].flipped
+    
+
+    model.set_variable_properties()
+    iters = model.air_movement(maxiter=50)
+    assert iters < 5
+
+    # Compute the flow we should get (playing a bit loose with the state props involved)
+    # f = C1(p1-p2)^n = C2(p2-p3)^n = C1(p3-p4)^n = Ce(p1-p4)^n
+    # (f/C1)^(1/n) = p1-p2
+    # (f/C2)^(1/n) = p2-p3
+    # (f/C3)^(1/n) = p3-p4
+    # p1-p4 = (f/C1)^(1/n) + (f/C2)^(1/n) + (f/C3)^(1/n) = f^(1/n) ((1/C1)^(1/n) + (1/C2)^(1/n) + (1/C3)^(1/n))
+    # (p1-p4)^n = f((1/C1)^(1/n) + (1/C2)^(1/n) + (1/C3)^(1/n))^n
+    # f = ((1/C1)^(1/n) + (1/C2)^(1/n) + (1/C3)^(1/n))^(-n) (p1-p4)^n
+    # Ce = ((1/C1)^(1/n) + (1/C2)^(1/n) + (1/C3)^(1/n))^(-n)
+    Ce = 1.0/math.pow(math.pow(1.0/model.links[0].element.turb, 1.0/model.links[0].element.expt) +
+                      math.pow(1.0/model.links[1].element.turb, 1.0/model.links[0].element.expt) +
+                      math.pow(1.0/model.links[2].element.turb, 1.0/model.links[0].element.expt), model.links[0].element.expt)
+    f = model.nodes['node-1'].sqrt_density * Ce * 10.0
+    assert abs(model.links[0].flow0 + f) < 1.0e-12
+    assert abs(model.links[0].flow0 + model.links[1].flow0) < 1.0e-12
+    assert abs(model.links[1].flow0 - model.links[2].flow0) < 1.0e-12
+
+    # Compute the pressure drops (playing a bit loose with the state props involved)
+    # f = C1(p1-p2)^n => p2 = p1 - (f/C1)^(1/n)
+    # f = C2(p2-p3)^n => p3 = p2 - (f/C2)^(1/n)
+    assert model.nodes['node-1'].pressure == 0.0
+    assert abs(model.nodes['node-2'].pressure - model.nodes['node-1'].pressure + math.pow(f/(model.links[0].element.turb * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.expt)) < 1.0e-12
+    assert abs(model.nodes['node-3'].pressure - model.nodes['node-2'].pressure + math.pow(f/(model.links[1].element.turb * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.expt)) < 1.0e-12
+    assert model.nodes['node-4'].pressure == -100.0
