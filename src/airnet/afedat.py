@@ -3,42 +3,61 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import math
 
-class Afe_Plr:
-    def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5):
-        self.init = init # laminar initialization coefficient
-        self.lam = lam # laminar flow coefficient
-        self.turb = turb # turbulent flow coefficient
-        self.expt = expt # turbulent flow exponent
+class MissingArgument(Exception):
+    pass
+
+class AirflowElement:
+    def get_arg(self, dictionary, name0, name1, object):
+        try:
+            return dictionary.get(name0)
+        except KeyError:
+            pass
+        try:
+            return dictionary.get(name1)
+        except KeyError:
+            raise MissingArgument('Argument "%s" or "%s" is required for %s objects' % (name0, name1, object))
+
+
+class Afe_Plr(AirflowElement):
+    def __init__(self, **kwargs):
+        self.initializer = kwargs.get('init', None) # laminar initialization coefficient
+        if self.initializer is None:
+            self.initializer = kwargs.get('initializer', None)
+        self.linear = self.get_arg(kwargs, 'lam', 'linear', 'Afe_Plr') # laminar/linear flow coefficient
+        self.coefficient = self.get_arg(kwargs, 'turb', 'coefficient', 'Afe_Plr') # turbulent flow coefficient
+        self.exponent = kwargs.get('expt', 0.5) # turbulent flow exponent
+        if self.initializer is None:
+            self.initializer = self.linear
 
     def type(self):
         return 'plr'
 
     def linearize(self, link):
-        return 0.5 * self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
+        return 0.5 * self.initializer * (link.node0.dvisc + link.node1.dvisc) # original code used node1
 
     def calculate(self, link, pdrop):
         if pdrop > 0.0:
-            cdm = self.lam * link.node0.dvisc
+            cdm = self.linear * link.node0.dvisc
             fl = cdm * pdrop
-            ft = self.turb * link.node0.sqrt_density * math.pow(pdrop, self.expt)
+            ft = self.coefficient * link.node0.sqrt_density * math.pow(pdrop, self.exponent)
             if fl <= ft:
                 f = fl
                 df = cdm
             else:
                 f = ft
-                df = ft * self.expt / pdrop
+                df = ft * self.exponent / pdrop
         elif pdrop < 0.0:
-            cdm = self.lam * link.node1.dvisc
+            cdm = self.linear * link.node1.dvisc
             fl = cdm * pdrop
-            ft = -self.turb * link.node1.sqrt_density * math.pow(-pdrop, self.expt)
+            ft = -self.coefficient * link.node1.sqrt_density * math.pow(-pdrop, self.exponent)
             if fl >= ft:
                 f = fl
                 df = cdm
             else:
                 f = ft
-                df = ft * self.expt / pdrop
+                df = ft * self.exponent / pdrop
         else:
-            cdm = 0.5 * self.lam * (link.node0.dvisc + link.node1.dvisc) # original code used node0
+            cdm = 0.5 * self.linear * (link.node0.dvisc + link.node1.dvisc) # original code used node0
             f = fl = ft = 0.0
             df = cdm
         return 1, f, 0.0, df, 0.0
@@ -70,16 +89,12 @@ class Afe_Qfr:
         return 'qfr'
 
 class Afe_Dor(Afe_Plr):
-    def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5, dtmin = 0.0,
-                 ht = 0.0, wd = 0.0, cd = 0.0):
-        self.init = init # laminar initialization coefficient
-        self.lam = lam # laminar flow coefficient
-        self.turb = turb # turbulent flow coefficient
-        self.expt = expt # turbulent flow exponent (0.5)
-        self.dtmin = dtmin # minimum temperature difference for two-way flow (C)
-        self.ht = ht # height of doorway (m)
-        self.wd = wd # width of doorway (m)
-        self.cd = cd # discharge coefficient
+    def __init__(self, **kwargs): #init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5, dtmin = 0.0, ht = 0.0, wd = 0.0, cd = 0.0):
+        super().__init__(kwargs)
+        self.min_temperature_difference = self.get_arg(kwargs, 'dtmin', 'min_temperature_difference') # minimum temperature difference for two-way flow (C)
+        self.height = self.get_arg(kwargs, 'ht', 'height') # height of doorway (m)
+        self.width = self.get_arg(kwargs, 'wd', 'width') # width of doorway (m)
+        self.discharge_coefficient = self.get_arg(kwargs, 'cd', 'discharge_coefficient') # discharge coefficient
     
     def type(self):
         return 'dor'
@@ -94,16 +109,16 @@ class Afe_Dor(Afe_Plr):
         dt = link.node0.temperature - link.node1.temperature
         gdrho = 9.8 * drho
 
-        if abs(dt) < self.dtmin:
-            return super().calculate(link, pdrop - 0.5 * self.ht * gdrho)
+        if abs(dt) < self.min_temperature_difference:
+            return super().calculate(link, pdrop - 0.5 * self.height * gdrho)
         else:
             y = pdrop / gdrho # Possible two-way flow
 
-            c = 1.414214 * self.wd * self.cd
+            c = 1.414214 * self.width * self.discharge_coefficient
             df0 = c * math.sqrt(abs(pdrop))/abs(gdrho)
             f0 = 0.666667 * c * math.sqrt(abs(gdrho*y))*abs(y)
-            dfh = c * math.sqrt(abs((self.ht-y)/gdrho))
-            fh = 0.666667 * dfh * abs(gdrho*(self.ht-y))
+            dfh = c * math.sqrt(abs((self.height-y)/gdrho))
+            fh = 0.666667 * dfh * abs(gdrho*(self.height-y))
             nf = 1
 
             if y < 0.0: # One-way flow (1 to 0)

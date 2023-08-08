@@ -66,7 +66,7 @@ def test_model_creation():
     # f = C1(p1-p2) = C2(p2-p3) = C1(p3-p4) = Ce(p1-p4) = Ce((p1-p2) + (p2-p3) + (p3-p4))
     # f = Ce*f(1/C1 + 1/C2 + 1/C3)
     # 1/Ce = 1/C1 + 1/C2 + 1/C3
-    Ce = model.nodes['node-1'].dvisc/(1.0/model.links[0].element.init + 1.0/model.links[1].element.init + 1.0/model.links[2].element.init)
+    Ce = model.nodes['node-1'].dvisc/(1.0/model.links[0].element.initializer + 1.0/model.links[1].element.initializer + 1.0/model.links[2].element.initializer)
     f = Ce * 100.0
     assert abs(model.links[0].flow0 + f) < 1.0e-12
     assert abs(model.links[0].flow0 + model.links[1].flow0) < 1.0e-12
@@ -76,8 +76,8 @@ def test_model_creation():
     # f = C1(p1-p2) => p2 = p1 - f/C1
     # f = C2(p2-p3) => p3 = p2 - f/C2
     assert model.nodes['node-1'].pressure == 0.0
-    assert abs(model.nodes['node-2'].pressure - model.nodes['node-1'].pressure + f/(model.links[0].element.init * model.nodes['node-1'].dvisc)) < 1.0e-12
-    assert abs(model.nodes['node-3'].pressure - model.nodes['node-2'].pressure + f/(model.links[1].element.init * model.nodes['node-1'].dvisc)) < 1.0e-12
+    assert abs(model.nodes['node-2'].pressure - model.nodes['node-1'].pressure + f/(model.links[0].element.initializer * model.nodes['node-1'].dvisc)) < 1.0e-12
+    assert abs(model.nodes['node-3'].pressure - model.nodes['node-2'].pressure + f/(model.links[1].element.initializer * model.nodes['node-1'].dvisc)) < 1.0e-12
     assert model.nodes['node-4'].pressure == -100.0
     assert model.links[0].flipped
     
@@ -95,9 +95,9 @@ def test_model_creation():
     # (p1-p4)^n = f((1/C1)^(1/n) + (1/C2)^(1/n) + (1/C3)^(1/n))^n
     # f = ((1/C1)^(1/n) + (1/C2)^(1/n) + (1/C3)^(1/n))^(-n) (p1-p4)^n
     # Ce = ((1/C1)^(1/n) + (1/C2)^(1/n) + (1/C3)^(1/n))^(-n)
-    Ce = 1.0/math.pow(math.pow(1.0/model.links[0].element.turb, 1.0/model.links[0].element.expt) +
-                      math.pow(1.0/model.links[1].element.turb, 1.0/model.links[0].element.expt) +
-                      math.pow(1.0/model.links[2].element.turb, 1.0/model.links[0].element.expt), model.links[0].element.expt)
+    Ce = 1.0/math.pow(math.pow(1.0/model.links[0].element.coefficient, 1.0/model.links[0].element.exponent) +
+                      math.pow(1.0/model.links[1].element.coefficient, 1.0/model.links[0].element.exponent) +
+                      math.pow(1.0/model.links[2].element.coefficient, 1.0/model.links[0].element.exponent), model.links[0].element.exponent)
     f = model.nodes['node-1'].sqrt_density * Ce * 10.0
     assert abs(model.links[0].flow0 + f) < 1.0e-12
     assert abs(model.links[0].flow0 + model.links[1].flow0) < 1.0e-12
@@ -107,6 +107,6 @@ def test_model_creation():
     # f = C1(p1-p2)^n => p2 = p1 - (f/C1)^(1/n)
     # f = C2(p2-p3)^n => p3 = p2 - (f/C2)^(1/n)
     assert model.nodes['node-1'].pressure == 0.0
-    assert abs(model.nodes['node-2'].pressure - model.nodes['node-1'].pressure + math.pow(f/(model.links[0].element.turb * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.expt)) < 1.0e-12
-    assert abs(model.nodes['node-3'].pressure - model.nodes['node-2'].pressure + math.pow(f/(model.links[1].element.turb * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.expt)) < 1.0e-12
+    assert abs(model.nodes['node-2'].pressure - model.nodes['node-1'].pressure + math.pow(f/(model.links[0].element.coefficient * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.exponent)) < 1.0e-12
+    assert abs(model.nodes['node-3'].pressure - model.nodes['node-2'].pressure + math.pow(f/(model.links[1].element.coefficient * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.exponent)) < 1.0e-12
     assert model.nodes['node-4'].pressure == -100.0
