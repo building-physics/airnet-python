@@ -227,7 +227,7 @@ class Model:
             for link in self.links:
                 if link.node0.variable:
                     pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
-                    nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(link, pdrop)
+                    nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
                     print(link.name, nf, link.flow0, link.flow1, df0, df1)
                     if nf == 1:
                         # diagonal term

@@ -16,7 +16,27 @@ class Afe_Plr:
     def linearize(self, link, multiplier=1.0, control=1.0):
         return 0.5 * self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
 
-    def calculate(self, link, pdrop, multiplier=1.0, control=1.0):
+    def flow(self, link, pdrop, multiplier=1.0, control=1.0):
+        f = fl = ft = 0.0
+        if pdrop > 0.0:
+            cdm = self.lam * link.node0.dvisc
+            fl = cdm * pdrop
+            ft = self.turb * link.node0.sqrt_density * math.pow(pdrop, self.expt)
+            if fl <= ft:
+                f = fl
+            else:
+                f = ft
+        elif pdrop < 0.0:
+            cdm = self.lam * link.node1.dvisc
+            fl = cdm * pdrop
+            ft = -self.turb * link.node1.sqrt_density * math.pow(-pdrop, self.expt)
+            if fl >= ft:
+                f = fl
+            else:
+                f = ft
+        return 1, f, 0.0
+
+    def jacobian(self, link, pdrop, multiplier=1.0, control=1.0):
         if pdrop > 0.0:
             cdm = self.lam * link.node0.dvisc
             fl = cdm * pdrop
@@ -70,6 +90,8 @@ class Afe_Qfr:
         return 'qfr'
 
 class Afe_Dor(Afe_Plr):
+    sqrt_two = 1.414214
+    two_thirds = 0.666667
     def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5, dtmin = 0.0,
                  ht = 0.0, wd = 0.0, cd = 0.0):
         self.init = init # laminar initialization coefficient
@@ -83,27 +105,67 @@ class Afe_Dor(Afe_Plr):
     
     def type(self):
         return 'dor'
+    
+    def one_way_flow(self, link, pdrop):
+        return (link.node0.temperature - link.node1.temperature) < self.dtmin
 
-    def calculate(self, link, pdrop, multiplier=1.0, control=1.0):
+    def flow(self, link, pdrop, multiplier=1.0, control=1.0):
+        f1 = 0.0 # computed flow rate
+        f2 = 0.0 # computed flow rate
+
+        drho = link.node0.density - link.node1.density
+        gdrho = 9.8 * drho
+
+        if self.one_way_flow(link, pdrop):
+            return super().calculate(link, pdrop - 0.5 * self.ht * gdrho)
+        else:
+            y = pdrop / gdrho # Possible two-way flow
+
+            c = self.sqrt_two * self.wd * self.cd
+            f0 = self.two_thirds * c * math.sqrt(abs(gdrho*y))*abs(y)
+            dfh = c * math.sqrt(abs((self.ht-y)/gdrho))
+            fh = self.two_thirds * dfh * abs(gdrho*(self.ht-y))
+            nf = 1
+
+            if y < 0.0: # One-way flow (1 to 0)
+                if drho > 0.0:
+                    f1 = -link.node1.sqrt_density * abs(fh-f0)
+                else:
+                    f1 =  link.node0.sqrt_density * abs(fh-f0)
+            elif y > self.ht: # One-way flow (0 to 1)
+                if drho > 0.0:
+                    f1 =  link.node0.sqrt_density * abs(fh-f0)
+                else:
+                    f1 = -link.node1.sqrt_density * abs(fh-f0)
+            else: # Two-way flow
+                nf = 2
+                if drho > 0.0:
+                    f1 = -link.node1.sqrt_density * fh
+                    f2 =  link.node0.sqrt_density * f0
+                else:
+                    f1 =  link.node0.sqrt_density * fh
+                    f2 = -link.node1.sqrt_density * f0
+        return nf, f1, f2
+
+    def jacobian(self, link, pdrop, multiplier=1.0, control=1.0):
         f1 = 0.0 # computed flow rate
         df1 = 0.0 # partial derivative: df/dp
         f2 = 0.0 # computed flow rate
         df2 = 0.0 # partial derivative: df/dp
 
         drho = link.node0.density - link.node1.density
-        dt = link.node0.temperature - link.node1.temperature
         gdrho = 9.8 * drho
 
-        if abs(dt) < self.dtmin:
+        if self.one_way_flow(link, pdrop):
             return super().calculate(link, pdrop - 0.5 * self.ht * gdrho)
         else:
             y = pdrop / gdrho # Possible two-way flow
 
-            c = 1.414214 * self.wd * self.cd
+            c = self.sqrt_two * self.wd * self.cd
             df0 = c * math.sqrt(abs(pdrop))/abs(gdrho)
-            f0 = 0.666667 * c * math.sqrt(abs(gdrho*y))*abs(y)
+            f0 = self.two_thirds * c * math.sqrt(abs(gdrho*y))*abs(y)
             dfh = c * math.sqrt(abs((self.ht-y)/gdrho))
-            fh = 0.666667 * dfh * abs(gdrho*(self.ht-y))
+            fh = self.two_thirds * dfh * abs(gdrho*(self.ht-y))
             nf = 1
 
             if y < 0.0: # One-way flow (1 to 0)
