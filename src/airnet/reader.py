@@ -76,7 +76,6 @@ class Reader:
             elif item_type == 'element':
                 name, sep, input_string = rest.lstrip().partition(' ')
                 element_type, sep, input_string = input_string.lstrip().partition(' ')
-                data = next_line.split()
                 method_name = "read_%s" % element_type
                 try:
                     result = getattr(self, method_name)(name, input_string.lstrip())
