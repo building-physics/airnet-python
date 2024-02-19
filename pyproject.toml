@@ -70,7 +70,9 @@ exclude_lines = [
 
 [tool.ruff]
 line-length = 92
+
+[tool.ruff.lint]
 ignore = ["E501"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
