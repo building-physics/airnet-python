@@ -70,24 +70,9 @@ class Reader:
                     return {'input_type': InputType.TITLE, 'title': self.title}
             
             if item_type == 'node':
-                data = rest.split()
-                if len(data) < 4:
-                    raise BadNetworkInput('Node at line %d has fewer than 5 fields' % self.line_number)
-                # node name type ht temp pres
-                if data[1] not in ['v', 'c', 'a']:
-                    raise BadNetworkInput('Node type "%s" at line %d is unrecognized, must be "v", "c", or "a"' % (data[1], self.line_number))
-                if data[1] == 'v':
-                    return {'input_type': InputType.NODE, 'name': data[0], 'type': data[1],
-                            'ht': self.handle_float('node', 'ht', data[2]), 
-                            'temp': self.handle_float('node', 'temp', data[3])}
-                else:
-                    if len(data) < 5:
-                        raise BadNetworkInput('Node at line %d has fewer than 6 fields' % self.line_number)
-                    return {'input_type': InputType.NODE, 'name': data[0],
-                            'type': data[1], 'ht': self.handle_float('node', 'ht', data[2]), 
-                            'temp': self.handle_float('node', 'temp', data[3]),
-                            'pres': self.handle_float('node', 'pres', data[4])}
-                
+                name, sep, input_string = rest.lstrip().partition(' ')
+                return self.read_node(name, input_string.lstrip())
+
             elif item_type == 'element':
                 name, sep, input_string = rest.lstrip().partition(' ')
                 element_type, sep, input_string = input_string.lstrip().partition(' ')
@@ -100,22 +85,47 @@ class Reader:
                 return result
             
             elif item_type == 'link':
-                data = next_line.split()
-                # link name node-l ht-l node-2 ht-2 element wind wpmod
-                if len(data) < 8:
-                    raise BadNetworkInput('Link at line %d has fewer than 8 fields' % self.line_number)
-                if data[7] == 'null':
-                    return {'input_type': InputType.LINK, 'name': data[1], 'node-1': data[2],
-                            'ht-1': self.handle_float('link', 'ht-l', data[3]), 
-                            'node-2': data[4], 'ht-2': self.handle_float('link', 'ht-2', data[5]), 'element': data[6]}
-                if len(data) < 9:
-                    raise BadNetworkInput('Link at line %d has fewer than 8 fields' % self.line_number)
-                return {'input_type': InputType.LINK, 'name': data[1], 'node-1': data[2], 
-                        'ht-1': self.handle_float('link', 'ht-l', data[3]), 
-                        'node-2': data[4], 'ht-2': self.handle_float('link', 'ht-2', data[5]), 'element': data[6],
-                        'wind': data[7], 'wpmod': self.handle_float('link', 'wpmod', data[8])}
+                name, sep, input_string = rest.lstrip().partition(' ')
+                return self.read_link(name, input_string.lstrip())
             next_line = self.get_next()
         raise StopIteration
+    
+    def read_node(self, name, input_string):
+        data = input_string.split()
+        # node name type ht temp pres
+        if len(data) < 3:
+            raise BadNetworkInput('Node at line %d has fewer than 5 fields' % self.line_number)
+        # node name type ht temp pres
+        if data[0] not in ['v', 'c', 'a']:
+            raise BadNetworkInput('Node type "%s" at line %d is unrecognized, must be "v", "c", or "a"' % (data[0], self.line_number))
+        if data[0] == 'v':
+            return {'input_type': InputType.NODE, 'name': name, 'type': data[0],
+                    'ht': self.handle_float('node', 'ht', data[1]), 
+                    'temp': self.handle_float('node', 'temp', data[2])}
+        else:
+            if len(data) < 4:
+                raise BadNetworkInput('Node at line %d has fewer than 6 fields' % self.line_number)
+            return {'input_type': InputType.NODE, 'name': name,
+                    'type': data[0], 'ht': self.handle_float('node', 'ht', data[1]), 
+                    'temp': self.handle_float('node', 'temp', data[2]),
+                    'pres': self.handle_float('node', 'pres', data[3])}
+        
+
+    def read_link(self, name, input_string):
+        data = input_string.split()
+        # link name node-l ht-l node-2 ht-2 element wind wpmod
+        if len(data) < 6:
+            raise BadNetworkInput('Link at line %d has fewer than 8 fields' % self.line_number)
+        if data[5] == 'null':
+            return {'input_type': InputType.LINK, 'name': name, 'node-1': data[0],
+                    'ht-1': self.handle_float('link', 'ht-l', data[1]), 
+                    'node-2': data[2], 'ht-2': self.handle_float('link', 'ht-2', data[3]), 'element': data[4]}
+        if len(data) < 7:
+            raise BadNetworkInput('Link at line %d has fewer than 9 fields' % self.line_number)
+        return {'input_type': InputType.LINK, 'name': name, 'node-1': data[0], 
+                'ht-1': self.handle_float('link', 'ht-l', data[1]), 
+                'node-2': data[2], 'ht-2': self.handle_float('link', 'ht-2', data[3]), 'element': data[4],
+                'wind': data[5], 'wpmod': self.handle_float('link', 'wpmod', data[6])}
     
     def read_plr(self, name, input_string):
         # element name plr init lam turb expt

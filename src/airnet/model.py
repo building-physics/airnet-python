@@ -270,7 +270,7 @@ def summarize_input():
         print('Opening input file "%s"...' % args.input)
 
     if not os.path.exists(args.input):
-        print('summarize_airnet_input: error: the input file "%s" does not exist' % args.input)
+        print('summarize_input: error: the input file "%s" does not exist' % args.input)
         return 1
 
     fp = open(args.input, 'r')
