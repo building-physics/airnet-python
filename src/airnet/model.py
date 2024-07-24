@@ -9,13 +9,18 @@ import numpy
 from .afedat import object_lookup
 from .reader import Reader, InputType
 
+def devnull(msg: str):
+    return
+
 class Node:
     def __init__(self, name=None, variable=True, ht=0.0, temp=293.15, pres=0.0,
-                 index=None):
+                 index=None, input_c=True):
         self.name = name
         self.variable = variable
         self.height = ht
         self.temperature = temp
+        if input_c:
+            self.temperature += 273.15
         self.pressure = pres
         self.index = index
         self.density = 0.0
@@ -158,6 +163,19 @@ class Model:
         string += '\nNodes: %s\n\nLinks: %s\n' % (len(self.nodes), len(self.links))
         string += '\nSystem size: %d x %x\n' % (len(self.variable_nodes), len(self.variable_nodes))
         return string
+    
+    def results_summary(self):
+        string = 'Title: %s\n\nNodes:\n======\n' % self.title
+        for name, node in self.nodes.items():
+            nr = node.index
+            if nr is None:
+                nr = 0
+            string += '%4d %s: %e %e %e\n' % (nr, node.name, node.pressure, node.temperature, node.density)
+        string += '\n'
+    
+        string += '\nNodes: %s\n\nLinks: %s\n' % (len(self.nodes), len(self.links))
+        string += '\nSystem size: %d x %x\n' % (len(self.variable_nodes), len(self.variable_nodes))
+        return string
 
     def set_variable_properties(self):
         for node in self.variable_nodes:
@@ -219,8 +237,9 @@ class Model:
             # Wind pressure contribution goes here
             link.pdrop =  sp0 + sp1 + spx
 
-    def air_movement(self, maxiter=100, max_subiter=100, tolerance=1.0e-8):
+    def air_movement(self, maxiter=100, max_subiter=100, tolerance=1.0e-8, status_function=devnull):
         self.compute_pressure_drops()
+        status_function('iter | Max Resid|\n==== ===============')
         for iter in range(1,maxiter+1):
             self.A.data.fill(0.0)
             self.x.fill(0.0)
@@ -228,7 +247,7 @@ class Model:
                 if link.node0.variable:
                     pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
-                    print(link.name, nf, link.flow0, link.flow1, df0, df1)
+                    #print(link.name, nf, link.flow0, link.flow1, df0, df1)
                     if nf == 1:
                         # diagonal term
                         self.A[link.node0.index, link.node0.index] += df0
@@ -241,20 +260,41 @@ class Model:
                             self.A[link.node0.index, link.node1.index] -= df0
                             self.A[link.node1.index, link.node0.index] -= df0
                     else:
-                        pass # Do this later...
-            maxf = max(self.x, key=abs)
-            if maxf <= tolerance:
+                        raise NotImplementedError('Two-way flow is not yet implemented')
+            maxf = abs(max(self.x, key=abs))
+            
+            #print('maxf = %e' % maxf)
+            #print(self.x)
+            if abs(maxf) > tolerance:
+                status_function('%4d %15.9e' % (iter, maxf))
+            else:
+                status_function('%4d %15.9e < %e' % (iter, maxf, tolerance))
+                #print('maxf = %e < %e' % (abs(maxf), tolerance))
+                # Update the pressure drops, up until now only secondary terms present
+                for link in self.links:
+                    if link.node0.variable:
+                        link.pdrop += link.node0.pressure - link.node1.pressure
                 return iter
-            self.x, info = scipy.sparse.linalg.cg(self.A, self.x, maxiter=max_subiter)
             info = 0
+            self.x, info = scipy.sparse.linalg.cg(self.A, self.x, maxiter=max_subiter)
             if info == 0:
                 # Update the nodal pressures, flows are set above
                 for node in self.variable_nodes:
                     node.pressure -= self.x[node.index]
             else:
-                raise 'STOPSTOPSTOP'
+                raise RuntimeError('Newton iteration solve failed at %d iterations' % iter)
         return maxiter
-            
+
+def write_results_csv(nodes, links, csv_file_name: str)   :
+    fp = open(csv_file_name, 'w')
+    fp.write('node header, name, time id, pressure, temperature, density\n')
+    for node in nodes:
+        fp.write('node, %s, 0, %21.15e, %21.15e, %21.15e\n' % (node.name, node.pressure,
+                                                               node.temperature, node.density))
+    fp.write('link header, name, time id, pressure drop, flow0, flow1\n')
+    for link in links:
+        fp.write('link, %s, 0, %21.15e, %21.15e, %21.15e\n' % (link.name, link.pdrop, link.flow0, link.flow1))
+    fp.close()
 
 def summarize_input():
     parser = argparse.ArgumentParser(description='Summarize an AIRNET network input file.')
@@ -319,29 +359,48 @@ def simulate():
     parser.add_argument('input', metavar='NETWORK_FILE')
 
     args = parser.parse_args()
+    run_simulate(args.input, verbose=args.verbose)
 
-    if args.verbose:
-        print('Opening input file "%s"...' % args.input)
+def run_simulate(input_file, verbose=False):
 
-    if not os.path.exists(args.input):
-        print('airnetsim: error: the input file "%s" does not exist' % args.input)
+    if verbose:
+        print('Opening input file "%s"...' % input_file)
+
+    if not os.path.exists(input_file):
+        print('airnetsim: error: the input file "%s" does not exist' % input_file)
         return 1
 
-    fp = open(args.input, 'r')
+    fp = open(input_file, 'r')
     reader = Reader(fp)
-    if args.verbose:
-        print('Reading input file "%s"...' % args.input)
+    if verbose:
+        print('Reading input file "%s"...' % input_file)
     items = []
     for item in reader:
         items.append(item)
-    if args.verbose:
-        print('Closing input file "%s".' % args.input)
+    if verbose:
+        print('Closing input file "%s".' % input_file)
     fp.close()
 
     model = Model(items)
     
-    if args.verbose:
+    if verbose:
         print(model.summary())
+
+    for node in model.nodes.values():
+        node.density = 1.2040973677927915
+        node.sqrt_density = math.sqrt(1.2040973677927915)
+        node.dvisc = 1.2040973677927915/node.viscosity
+
+    model.initialize()
+
+    if verbose:
+        iters = model.air_movement(status_function=print)
+        print('iters = %d' % iters)
+        print(model.results_summary())
+    else:
+        model.air_movement()
+
+    write_results_csv([el for el in model.nodes.values() if el.index is not None], model.links, 'airnetsim.csv')
 
 def gui_simulate():
     pass

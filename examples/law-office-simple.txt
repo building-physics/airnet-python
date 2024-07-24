@@ -1,0 +1,42 @@
+title  Simplified law office case
+
+node   office-1  v   0.0   20.0
+node   office-2  v   0.0   20.0
+node   library   v   0.0   20.0
+node   hallway   v   0.0   20.0
+node   n-lib     c   0.0   20.0    15.0
+node   n-off-2   c   0.0   20.0    15.0
+node   e-off-2   c   0.0   20.0     5.0
+node   e-off-1   c   0.0   20.0     5.0
+node   s-off-1   c   0.0   20.0   -15.0
+node   s-hall    c   0.0   20.0   -15.0
+node   s-lib     c   0.0   20.0   -15.0
+node   w-lib     c   0.0   20.0    -5.0
+
+element  ext-wall     plr    6.1e-08    6.1e-08  0.0005  0.65  ! original element
+element  ext-wall-03  plr   54.9e-08   54.9e-08  0.0045  0.65  ! original x 9
+element  ext-wall-07  plr  128.1e-08  128.1e-08  0.0105  0.65  ! original x 21
+element  ext-wall-08  plr  146.4e-08  146.4e-08  0.0120  0.65  ! original x 24
+element  ext-wall-10  plr  183.0e-08  183.0e-08  0.0150  0.65  ! original x 30
+element  ext-wall-17  plr  311.1e-08  311.1e-08  0.0255  0.65  ! original x 51
+element  int-wall     plr    1.5e-07    1.5e-07  0.0010  0.65  ! original element
+element  int-wall-03  plr   13.5e-07   13.5e-07  0.0090  0.65  ! original x 9
+element  int-wall-07  plr   31.5e-07   31.5e-07  0.0210  0.65  ! original x 21
+element  int-wall-10  plr   45.0e-07   45.0e-07  0.0300  0.65  ! original x 30
+
+link   link-1    library   0.0   n-lib     0.0   ext-wall-08   null
+link   link-2    office-2  0.0   n-off-2   0.0   ext-wall-10   null
+link   link-3    library   0.0   office-2  0.0   int-wall-07   null
+link   link-4    office-2  0.0   e-off-2   0.0   ext-wall-07   null
+link   link-5    hallway   0.0   office-2  0.0   int-wall-03   null
+link   link-6    office-1  0.0   office-2  0.0   int-wall-07   null
+link   link-7    library   0.0   w-lib     0.0   ext-wall-17   null
+link   link-8    library   0.0   hallway   0.0   int-wall-10   null
+link   link-9    hallway   0.0   office-1  0.0   int-wall-10   null
+link   link-10   office-1  0.0   e-off-1   0.0   ext-wall-10   null
+link   link-11   library   0.0   s-lib     0.0   ext-wall-08   null
+link   link-12   hallway   0.0   s-hall    0.0   ext-wall-03   null
+link   link-13   office-1  0.0   s-off-1   0.0   ext-wall-07   null
+
+*********
+

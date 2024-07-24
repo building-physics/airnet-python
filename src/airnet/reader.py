@@ -100,7 +100,7 @@ class Reader:
         if data[0] == 'v':
             return {'input_type': InputType.NODE, 'name': name, 'type': data[0],
                     'ht': self.handle_float('node', 'ht', data[1]), 
-                    'temp': self.handle_float('node', 'temp', data[2])}
+                    'temp': self.handle_float('node', 'temp', data[2]),}
         else:
             if len(data) < 4:
                 raise BadNetworkInput('Node at line %d has fewer than 6 fields' % self.line_number)
