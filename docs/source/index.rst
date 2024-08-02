@@ -6,13 +6,15 @@
 airnet documentation
 ====================
 
-**airnet** is a Python library implementing a pressure network solution in the spirit of the NIST AIRNET program.
-It is intended to operate similarly, but may not operate exactly the same due to implementation differences.
+**airnet** is a Python library implementing a pressure network solution in the spirit of the NIST AIRNET program,
+particularly with respect to the airflow elements. It is intended to operate similarly, but may not operate
+exactly the same due to implementation differences.
 
 .. toctree::
+   overview
    user_guide
-   development
    reference
+   developers
    :maxdepth: 2
    :caption: Contents:
 
