@@ -32,7 +32,7 @@ def compare_nodes(line1, line2, pressure_tolerance, temperature_tolerance, densi
     for i,v,t in zip(index,vars,tols):
         delta = abs(float(line1[i]) - float(line2[i]))
         if delta > t:
-            messages.append('Nodes at line %d have %s difference > %e: %s, %s' % (line_number, v, t, line1[i], line2[i]))
+            messages.append('Nodes at line %d have %s difference %e > %e: %s, %s' % (line_number, v, delta, t, line1[i], line2[i]))
 
     return messages
 

@@ -56,8 +56,9 @@ def test_model_creation():
     # we can do simple tests.
     node_4_pressure = model.nodes['node-4'].pressure
     node_1 = model.nodes['node-1']
-    for node in model.nodes.values():
-        node.copy_state(node_1)
+    node_1_temp = node_1.temperature
+    node_1_dens = node_1.density
+    model.set_properties(model.nodes.values(), global_temperature=node_1_temp, global_density=node_1_dens)
     model.nodes['node-4'].pressure = node_4_pressure
 
     assert model.initialize(maxiter=10)
