@@ -5,11 +5,12 @@ import airnet
 import os
 
 def test_law_office_simple():
-    contam_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'law-office-simple-3405.csv')
-    net_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'law-office-simple.txt')
-    old_cwd = os.getcwd()
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    contam_csv = os.path.join(current_dir, 'law-office-simple-3405.csv')
+    airnet_csv = os.path.join(current_dir, 'law-office-simple-airnet.csv')
+    net_file = os.path.join(current_dir, '..', 'examples', 'law-office-simple.txt')
     with airnet.temporary_directory():
-        airnet.run_simulate(net_file)
+        airnet.run_simulate(net_file, global_density=1.2040973677927915)
         assert os.path.exists('airnetsim.csv')
         assert airnet.compare_csvs(contam_csv, 'airnetsim.csv') == []
-        os.chdir(old_cwd)
+        assert airnet.compare_csvs(airnet_csv, 'airnetsim.csv', node_tolerance=1.0e-15) == []

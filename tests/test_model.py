@@ -38,7 +38,7 @@ def test_model_creation():
     for item in reader:
         items.append(item)
 
-    model = AltModel(items)
+    model = airnet.Model(items)
     assert len(model.nodes) == 4
     assert len(model.variable_nodes) == 2
     assert len(model.links) == 3
@@ -82,7 +82,7 @@ def test_model_creation():
     assert model.links[0].flipped
     
 
-    model.set_variable_properties()
+    #model.set_variable_properties()
     iters = model.air_movement(maxiter=50)
     assert iters < 5
 

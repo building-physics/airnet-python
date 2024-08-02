@@ -17,7 +17,7 @@ def temporary_directory():
         os.chdir(origin)
         tmp.cleanup()
 
-def compare_nodes(line1, line2, tolerance, line_number):
+def compare_nodes(line1, line2, pressure_tolerance, temperature_tolerance, density_tolerance, line_number):
     messages = []
     # Check names
     if line1[1].strip() != line2[1].strip():
@@ -28,7 +28,7 @@ def compare_nodes(line1, line2, tolerance, line_number):
     # Check pressure, temperature, and density
     index = [3, 4, 5]
     vars = ['pressure', 'temperature', 'density']
-    tols = [tolerance, 1.0e-5, tolerance]
+    tols = [pressure_tolerance, 1.0e-5, density_tolerance]
     for i,v,t in zip(index,vars,tols):
         delta = abs(float(line1[i]) - float(line2[i]))
         if delta > t:
@@ -36,8 +36,13 @@ def compare_nodes(line1, line2, tolerance, line_number):
 
     return messages
 
-def compare_csvs(csv1, csv2, node_tolerance=1.0e-7, link_tolerance=1.0e-8):
+def compare_csvs(csv1, csv2, node_pressure_tolerance=1.0e-7, node_temperature_tolerance=1.0e-5,
+                 node_density_tolerance=1.0e-7, node_tolerance=None, link_tolerance=1.0e-8):
     messages = []
+    if node_tolerance is not None:
+        node_pressure_tolerance = node_tolerance
+        node_temperature_tolerance = node_tolerance
+        node_density_tolerance = node_tolerance
     with open(csv1) as fp1, open(csv2) as fp2:
         r1 = csv.reader(fp1)
         r2 = csv.reader(fp2)
@@ -50,7 +55,8 @@ def compare_csvs(csv1, csv2, node_tolerance=1.0e-7, link_tolerance=1.0e-8):
                 if line1[0].endswith('header'):
                     pass
                 elif line1[0] == 'node':
-                    messages.extend(compare_nodes(line1, line2, node_tolerance, line_count))
+                    messages.extend(compare_nodes(line1, line2, node_pressure_tolerance, 
+                                                  node_temperature_tolerance, node_density_tolerance, line_count))
                 elif line1[0] == 'link':
                     pass
                 else:

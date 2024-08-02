@@ -13,8 +13,27 @@ def devnull(msg: str):
     return
 
 class Node:
-    def __init__(self, name=None, variable=True, ht=0.0, temp=293.15, pres=0.0,
-                 index=None, input_c=True):
+    """A class representing a node in the pressure network.
+    
+    Parameters
+    ----------
+    name:
+        The name of the node.
+    variable:
+        Boolean flag that determines whether the pressure is variable.
+    ht: optional
+        The elevation of the node for stack-based pressure calculation.
+    temp: optional
+        The temperature of the node.
+    pres: optional
+        The pressure of the node.
+    index: optional
+        The index of the node in the system of equations, only meaningful for variable nodes.
+    input_c: optional
+        Flag determining the input temperature units. If True, the temperature is in Celcius, otherwise Kelvin.
+    """
+    def __init__(self, name:str|None=None, variable:bool=True, ht:float=0.0, temp:float=293.15,
+                 pres:float=0.0, index:int|None=None, input_c:bool=True):
         self.name = name
         self.variable = variable
         self.height = ht
@@ -27,13 +46,13 @@ class Node:
         self.viscosity = 0.0
         self.sqrt_density = 0.0
         self.dvisc = 0.0 # Density divided by viscosity
-    def copy_state(self, other):
-        self.temperature = other.temperature
-        self.pressure = other.pressure
-        self.density = other.density
-        self.viscosity = other.viscosity
-        self.sqrt_density = other.sqrt_density
-        self.dvisc = other.dvisc
+    #def copy_state(self, other):
+    #    self.temperature = other.temperature
+    #    self.pressure = other.pressure
+    #    self.density = other.density
+    #    self.viscosity = other.viscosity
+    #    self.sqrt_density = other.sqrt_density
+    #    self.dvisc = other.dvisc
 
 
 class Link:
@@ -54,11 +73,14 @@ class Link:
         self.pdrop = 0.0
 
 class BadNetwork(Exception):
+    """Raised if the network is bad."""
     pass
 
 class Model:
-    def __init__(self, network_input, element_lookup = object_lookup, node_object=Node,
-                 link_object=Link):
+    """A class containing nodes, links, and other data representing a pressure network.
+    """
+    def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
+                 link_object=Link, global_temperature:float=None, global_density:float=None):
         self.title = ''
         self.nodes = {}
         self.links = []
@@ -135,7 +157,8 @@ class Model:
         self.A = scipy.sparse.csr_matrix(matrix)
         self.x = numpy.zeros([self.size, 1], dtype=numpy.double)
 
-        self.set_properties()
+        self.set_properties(self.nodes.values(), global_temperature=global_temperature,
+                            global_density=global_density)
 
         # Check for disconnected nodes
         problems = []
@@ -149,6 +172,13 @@ class Model:
            raise BadNetwork('Disconnected nodes found: %s' % ', '.join([el.name for el in problems]))
 
     def summary(self):
+        """Summarize the pressure network in the model.
+        
+        Returns
+        -------
+        str:
+            A multiline string that describes the model.
+        """
         string = 'Title: %s\n\nElements:\n=========\n' % self.title
         elements = {}
         for el in self.elements.values():
@@ -165,6 +195,13 @@ class Model:
         return string
     
     def results_summary(self):
+        """Summarize the result of simulation of the pressure network.
+        
+        Returns
+        -------
+        str:
+            A multiline string that describes the results.
+        """
         string = 'Title: %s\n\nNodes:\n======\n' % self.title
         for name, node in self.nodes.items():
             nr = node.index
@@ -177,21 +214,66 @@ class Model:
         string += '\nSystem size: %d x %x\n' % (len(self.variable_nodes), len(self.variable_nodes))
         return string
 
-    def set_variable_properties(self):
-        for node in self.variable_nodes:
-            node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
-            node.sqrt_density = math.sqrt(node.density)
-            node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
-            node.dvisc = node.density / node.viscosity
+    def set_properties(self, nodes:list, global_temperature:float|None=None, global_density:float|None=None):
+        """Loop and set the properties of the nodes.
+        
+        Parameters
+        ----------
+        nodes:
+            The list of nodes to modify.
+        global_temperature: optional
+            If not None, use this temperature everywhere.
+        global_density: optional
+            If not None, use this density everywhere.
+        """
+        if global_temperature is None:
+            if global_density is None:
+                # Compute the full set of properties
+                for node in nodes:
+                    node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
+                    node.sqrt_density = math.sqrt(node.density)
+                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
+                    node.dvisc = node.density / node.viscosity
+            else:
+                # Set the density everywhere
+                for node in nodes:
+                    node.density = global_density
+                    node.sqrt_density = math.sqrt(node.density)
+                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
+                    node.dvisc = node.density / node.viscosity
+        else:
+            if global_density is None:
+                # Set the temperature everywhere
+                for node in nodes:
+                    node.temperature = global_temperature
+                    node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
+                    node.sqrt_density = math.sqrt(node.density)
+                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
+                    node.dvisc = node.density / node.viscosity
+            else:
+                # Set the temperature and density everywhere
+                for node in nodes:
+                    node.temperature = global_temperature
+                    node.density = global_density
+                    node.sqrt_density = math.sqrt(node.density)
+                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
+                    node.dvisc = node.density / node.viscosity
 
-    def set_properties(self):
-        for node in self.nodes.values():
-            node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
-            node.sqrt_density = math.sqrt(node.density)
-            node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
-            node.dvisc = node.density / node.viscosity
-
-    def initialize(self, maxiter=100):
+    def initialize(self, maxiter:int=100):
+        """Initialize the flow network.
+        
+        Compute flows and pressure drops using linear flow representation for all elements.
+        
+        Parameters
+        ----------
+        maxiter: optional
+            The maximum number of iterations allowed in the solution.
+            
+        Returns
+        -------
+        bool:
+            True is returned if the initialization has converged in the allowed number of iterations, False otherwise.
+        """
         self.A.data.fill(0.0)
         self.x.fill(0.0)
         for link in self.links:
@@ -221,6 +303,7 @@ class Model:
         return False
     
     def compute_pressure_drops(self):
+        """Compute the pressure drop across all the links in the model."""
         for link in self.links:
             # Stack contribution
             sp0 = -9.80 * link.node0.density * link.ht0
@@ -237,7 +320,25 @@ class Model:
             # Wind pressure contribution goes here
             link.pdrop =  sp0 + sp1 + spx
 
-    def air_movement(self, maxiter=100, max_subiter=100, tolerance=1.0e-8, status_function=devnull):
+    def air_movement(self, maxiter:int=100, max_subiter:int=100, tolerance:float=1.0e-8, status_function=devnull):
+        """Compute steady airflows in the model.
+        
+        Parameters
+        ----------
+        maxiter: optional
+            The maximum number of Newton iterations allowed.
+        max_subiter: optional
+            The maximum number of conjugate gradient iterations allowed in the linear solve.
+        tolerance: optional
+            The absolute convergence tolerance.
+        status_function: optional
+            Function that handles message output, the default is to discard all messages.
+        
+        Returns
+        -------
+        int:
+            The number of Newton iterations used in the solve.
+        """
         self.compute_pressure_drops()
         status_function('iter | Max Resid|\n==== ===============')
         for iter in range(1,maxiter+1):
@@ -247,7 +348,6 @@ class Model:
                 if link.node0.variable:
                     pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
-                    #print(link.name, nf, link.flow0, link.flow1, df0, df1)
                     if nf == 1:
                         # diagonal term
                         self.A[link.node0.index, link.node0.index] += df0
@@ -263,13 +363,10 @@ class Model:
                         raise NotImplementedError('Two-way flow is not yet implemented')
             maxf = abs(max(self.x, key=abs))
             
-            #print('maxf = %e' % maxf)
-            #print(self.x)
             if abs(maxf) > tolerance:
                 status_function('%4d %15.9e' % (iter, maxf))
             else:
                 status_function('%4d %15.9e < %e' % (iter, maxf, tolerance))
-                #print('maxf = %e < %e' % (abs(maxf), tolerance))
                 # Update the pressure drops, up until now only secondary terms present
                 for link in self.links:
                     if link.node0.variable:
@@ -361,7 +458,7 @@ def simulate():
     args = parser.parse_args()
     run_simulate(args.input, verbose=args.verbose)
 
-def run_simulate(input_file, verbose=False):
+def run_simulate(input_file, verbose=False, global_temperature=None, global_density=None):
 
     if verbose:
         print('Opening input file "%s"...' % input_file)
@@ -381,15 +478,10 @@ def run_simulate(input_file, verbose=False):
         print('Closing input file "%s".' % input_file)
     fp.close()
 
-    model = Model(items)
+    model = Model(items, global_temperature=global_temperature, global_density=global_density)
     
     if verbose:
         print(model.summary())
-
-    for node in model.nodes.values():
-        node.density = 1.2040973677927915
-        node.sqrt_density = math.sqrt(1.2040973677927915)
-        node.dvisc = 1.2040973677927915/node.viscosity
 
     model.initialize()
 

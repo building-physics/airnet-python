@@ -4,19 +4,65 @@
 import math
 
 class Afe_Plr:
-    def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5):
+    """Power law flow element.
+    
+    Parameters
+    ----------
+    init: optional
+        The linear coefficient used in initialization.
+    lam: optional
+        The linear flow coefficient used in simulation.
+    turb: optional
+        The nonlinear flow coefficient used in simulation.
+    expt: optional
+        The nonlinear flow exponent used in simulation.
+    """
+    def __init__(self, init:float=0.0, lam:float=0.0, turb:float=0.0, expt:float=0.5):
         self.init = init # laminar initialization coefficient
         self.lam = lam # laminar flow coefficient
         self.turb = turb # turbulent flow coefficient
         self.expt = expt # turbulent flow exponent
 
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'plr'
 
-    def linearize(self, link, multiplier=1.0, control=1.0):
+    def linearize(self, link, multiplier:float=1.0, control:float=1.0):
+        """Compute the linear flow coeffient.
+        
+        The function computes the linear coefficient for use in initialization.
+        
+        Parameters
+        ----------
+        link:
+            The link object that the linear coefficient is needed for.
+        multiplier: optional
+            The multiplier determines how many elements this linkage represents. Defaults to 1.
+        control: optional
+            The control signal that is used to control flow for some elements. Defaults to 1.
+        """
         return 0.5 * self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
 
-    def flow(self, link, pdrop, multiplier=1.0, control=1.0):
+    def flow(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
+        """Compute the flow through an element.
+        
+        Parameters
+        ----------
+        link:
+            The link object that the linear coefficient is needed for.
+        pdrop:
+            The pressure drop driving the flow.
+        multiplier: optional
+            The multiplier determines how many elements this linkage represents. Defaults to 1.
+        control: optional
+            The control signal that is used to control flow for some elements. Defaults to 1.
+        """
         f = fl = ft = 0.0
         if pdrop > 0.0:
             cdm = self.lam * link.node0.dvisc
@@ -36,7 +82,20 @@ class Afe_Plr:
                 f = ft
         return 1, f, 0.0
 
-    def jacobian(self, link, pdrop, multiplier=1.0, control=1.0):
+    def jacobian(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
+        """Compute the flow through an element and the associated Jacobian terms.
+        
+        Parameters
+        ----------
+        link:
+            The link object that the linear coefficient is needed for.
+        pdrop:
+            The pressure drop driving the flow.
+        multiplier: optional
+            The multiplier determines how many elements this linkage represents. Defaults to 1.
+        control: optional
+            The control signal that is used to control flow for some elements. Defaults to 1.
+        """
         if pdrop > 0.0:
             cdm = self.lam * link.node0.dvisc
             fl = cdm * pdrop
@@ -64,8 +123,9 @@ class Afe_Plr:
         return 1, f, 0.0, df, 0.0
 
 class Afe_Dwc:
-    def __init__(self, length = 0.0, hdia = 0.0, area = 0.0, rough = 0.0, tdlc = 0.0,
-                 lflc = 0.0, ldlc = 0.0, linit = 0.0, ed = 0.0, ld = 0.0, f = 0.0):
+    """Darcy-Weisbach duct flow element."""
+    def __init__(self, length:float=0.0, hdia:float=0.0, area:float=0.0, rough:float=0.0, tdlc:float=0.0,
+                 lflc:float=0.0, ldlc:float=0.0, linit:float=0.0, ed:float=0.0, ld:float=0.0, f:float=0.0):
         self.length = length # length of the duct (m)
         self.hdia = hdia # hydraulic diameter (m)
         self.area = area # cross sectional area (m^2)
@@ -79,14 +139,37 @@ class Afe_Dwc:
         self.f = f # Darcy friction factor
 
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'dwc'
 
 class Afe_Qfr:
-    def __init__(self, a = 0.0, b = 0.0):
+    """Quadratic flow element.
+    
+    Parameters
+    ----------
+    a:
+        First order coefficient the quadratic flow relation.
+    b:
+        Second order coefficent in the quadratic flow relation.
+    """
+    def __init__(self, a:float=0.0, b:float=0.0):
         self.a = a # pdrop = a*f + b*f*f
         self.b = b #
 
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'qfr'
 
 class Afe_Dor(Afe_Plr):
@@ -104,12 +187,32 @@ class Afe_Dor(Afe_Plr):
         self.cd = cd # discharge coefficient
     
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'dor'
     
-    def one_way_flow(self, link, pdrop):
+    def one_way_flow(self, link, pdrop:float):
         return (link.node0.temperature - link.node1.temperature) < self.dtmin
 
-    def flow(self, link, pdrop, multiplier=1.0, control=1.0):
+    def flow(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
+        """Compute the flow through an element.
+        
+        Parameters
+        ----------
+        link:
+            The link object that the linear coefficient is needed for.
+        pdrop:
+            The pressure drop driving the flow.
+        multiplier: optional
+            The multiplier determines how many elements this linkage represents. Defaults to 1.
+        control: optional
+            The control signal that is used to control flow for some elements. Defaults to 1.
+        """
         f1 = 0.0 # computed flow rate
         f2 = 0.0 # computed flow rate
 
@@ -147,7 +250,20 @@ class Afe_Dor(Afe_Plr):
                     f2 = -link.node1.sqrt_density * f0
         return nf, f1, f2
 
-    def jacobian(self, link, pdrop, multiplier=1.0, control=1.0):
+    def jacobian(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
+        """Compute the flow through an element and the associated Jacobian terms.
+        
+        Parameters
+        ----------
+        link:
+            The link object that the linear coefficient is needed for.
+        pdrop:
+            The pressure drop driving the flow.
+        multiplier: optional
+            The multiplier determines how many elements this linkage represents. Defaults to 1.
+        control: optional
+            The control signal that is used to control flow for some elements. Defaults to 1.
+        """
         f1 = 0.0 # computed flow rate
         df1 = 0.0 # partial derivative: df/dp
         f2 = 0.0 # computed flow rate
@@ -197,15 +313,22 @@ class Afe_Dor(Afe_Plr):
         return nf, f1, f2, df1, df2
 
 class Afe_Cfr:
-    def __init__(self, flow = 0.0):
+    def __init__(self, flow:float=0.0):
         self.flow = flow # flow rate (kg/s)
     
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'cfr'
 
 class Afe_Fan(Afe_Plr):
-    def __init__(self, init = 0.0, lam = 0.0, turb = 0.0, expt = 0.5, rdens = 0.0,
-                 fdf = 0.0, sop = 0.0, off = 0.0, mf1 = 0.0, pts = None): #prl = None, fpc = None):
+    def __init__(self, init:float=0.0, lam:float=0.0, turb:float=0.0, expt:float=0.5, rdens:float=0.0,
+                 fdf:float=0.0, sop:float=0.0, off:float=0.0, mf1:float=0.0, pts:float=None): #prl = None, fpc = None):
         self.init = init # laminar initialization coefficient
         self.lam = lam # laminar flow coefficient
         self.turb = turb # turbulent flow coefficient
@@ -218,6 +341,13 @@ class Afe_Fan(Afe_Plr):
         #self.**fpc = **fpc # array of fan performance coefficients [1..nfr][0..3]
 
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'fan'
 
 class Afe_Cpf:
@@ -227,24 +357,45 @@ class Afe_Cpf:
         self.ftyp = ftyp # typical mass flow rate (kg/s)
 
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'cpf'
 
 class Afe_Ckv:
-    def __init__(self, dp0 = 0.0, coef = 0.0):
+    def __init__(self, dp0:float=0.0, coef:float=0.0):
         self.dp0 = dp0 # cut-off pressure
         self.coef = coef # flow coefficient
 
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'ckv'
 
 class Afe_Prv:
-    def __init__(self, fpos = 0.0, cpos = 0.0, fneg = 0.0, cneg = 0.0):
+    def __init__(self, fpos:float=0.0, cpos:float=0.0, fneg:float=0.0, cneg:float=0.0):
         self.fpos = fpos # design flow rate - positive direction (kg/s)
         self.cpos = cpos # positive pressure coefficient
         self.fneg = fneg # design flow rate - negative direction (kg/s)
         self.cneg = cneg # negitive pressure coefficient
 
     def type(self):
+        """Returns the flow element three-character type.
+        
+        Returns
+        -------
+        str:
+            The three-character type of the flow element.
+        """
         return 'prv'
 
 object_lookup = {'plr': Afe_Plr, 'dwc': Afe_Dwc, 'qfr': Afe_Qfr,
