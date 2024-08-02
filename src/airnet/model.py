@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2023-present Oak Ridge National Laboratory, managed by UT-Battelle
 #
 # SPDX-License-Identifier: BSD-3-Clause
-from __future__ import annotations
+from __future__ import annotations # Remove when dropping 3.9
 import argparse
 import os
 import math
