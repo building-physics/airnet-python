@@ -1,14 +1,11 @@
 .. airnet documentation master file, created by
    sphinx-quickstart on Thu Aug  1 21:21:42 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 airnet documentation
 ====================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+**airnet** is a python library implementing a pressure network solution in the spirit of the NIST AIRNET program.
+It is intended to operate similarly, but may not operate exactly the same due to implementation differences.
 
 
 .. toctree::
