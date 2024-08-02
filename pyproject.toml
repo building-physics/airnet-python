@@ -44,7 +44,8 @@ path = "src/airnet/__about__.py"
 dependencies = [
   "pytest",
   "pytest-cov",
-  "sphinx"
+  "sphinx",
+  "pydata-sphinx-theme"
 ]
 [tool.hatch.envs.default.scripts]
 cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/airnet --cov=tests {args}"
