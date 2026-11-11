@@ -33,7 +33,8 @@ class Afe_Plr:
         """
         return 'plr'
 
-    def linearize(self, link, multiplier:float=1.0, control:float=1.0):
+    def linearize(self, link, pdrop:float, multiplier:float=1.0,
+                  control:float=1.0):
         """Compute the linear flow coeffient.
         
         The function computes the linear coefficient for use in initialization.
@@ -42,12 +43,16 @@ class Afe_Plr:
         ----------
         link:
             The link object that the linear coefficient is needed for.
+        pdrop:
+            The pressure drop used to select the upwind air properties.
         multiplier: optional
             The multiplier determines how many elements this linkage represents. Defaults to 1.
         control: optional
             The control signal that is used to control flow for some elements. Defaults to 1.
         """
-        return 0.5 * self.init * (link.node0.dvisc + link.node1.dvisc) # original code used node1
+        if pdrop > 0.0:
+            return self.init * link.node0.dvisc
+        return self.init * link.node1.dvisc
 
     def flow(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
         """Compute the flow through an element.

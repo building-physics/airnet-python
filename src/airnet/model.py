@@ -279,7 +279,8 @@ class Model:
         self.x.fill(0.0)
         for link in self.links:
             if link.node0.variable:
-                c = link.element.linearize(link)
+                pdrop = link.node0.pressure - link.node1.pressure
+                c = link.element.linearize(link, pdrop=pdrop)
                 # diagonal term
                 self.A[link.node0.index, link.node0.index] += c
                 if link.node1.variable:
@@ -290,14 +291,17 @@ class Model:
                     self.A[link.node1.index, link.node0.index] -= c
                 else:
                     self.x[link.node0.index] += c*link.node1.pressure
-        self.x, info = scipy.sparse.linalg.cg(self.A, self.x, maxiter=maxiter)
+        self.x, info = scipy.sparse.linalg.cg(
+            self.A, self.x, rtol=1.0e-12, atol=0.0, maxiter=maxiter
+        )
         if info == 0:
             # Update the nodal pressures
             for node in self.variable_nodes:
                 node.pressure = self.x[node.index]
             # Update the flows:
             for link in self.links:
-                c = link.element.linearize(link)
+                pdrop = link.node0.pressure - link.node1.pressure
+                c = link.element.linearize(link, pdrop=pdrop)
                 link.flow0 = c*(link.node0.pressure-link.node1.pressure)
                 link.flow1 = 0.0
             return True
@@ -321,7 +325,10 @@ class Model:
             # Wind pressure contribution goes here
             link.pdrop =  sp0 + sp1 + spx
 
-    def air_movement(self, maxiter:int=100, max_subiter:int=100, tolerance:float=1.0e-8, status_function=devnull):
+    def air_movement(self, maxiter:int=100, max_subiter:int=100,
+                     tolerance:float=1.0e-8, status_function=devnull,
+                     relative_tolerance:float|None=None, relaxation:float=1.0,
+                     minimum_iterations:int=1):
         """Compute steady airflows in the model.
         
         Parameters
@@ -332,6 +339,14 @@ class Model:
             The maximum number of conjugate gradient iterations allowed in the linear solve.
         tolerance: optional
             The absolute convergence tolerance.
+        relative_tolerance: optional
+            The per-node relative airflow convergence tolerance. When omitted,
+            convergence is based only on ``tolerance``.
+        relaxation: optional
+            The AIRNET under-relaxation coefficient. A correction is relaxed
+            when the global relative residual is not falling rapidly.
+        minimum_iterations: optional
+            The minimum number of nonlinear residual evaluations.
         status_function: optional
             Function that handles message output, the default is to discard all messages.
         
@@ -339,12 +354,29 @@ class Model:
         -------
         int:
             The number of Newton iterations used in the solve.
+
+        Raises
+        ------
+        RuntimeError
+            If either a linear correction fails or the nonlinear iteration
+            does not converge within ``maxiter`` iterations.
         """
+        if tolerance < 0.0:
+            raise ValueError('Absolute convergence tolerance cannot be negative')
+        if relative_tolerance is not None and relative_tolerance < 0.0:
+            raise ValueError('Relative convergence tolerance cannot be negative')
+        if not 0.0 < relaxation <= 1.0:
+            raise ValueError('Relaxation coefficient must be greater than 0 and at most 1')
+        if minimum_iterations < 1:
+            raise ValueError('Minimum iterations must be at least 1')
+
         self.compute_pressure_drops()
         status_function('iter | Max Resid|\n==== ===============')
+        previous_relative_residual = 0.0
         for iter in range(1,maxiter+1):
             self.A.data.fill(0.0)
             self.x.fill(0.0)
+            sum_abs_flow = numpy.zeros(self.size, dtype=numpy.double)
             for link in self.links:
                 if link.node0.variable:
                     pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
@@ -353,35 +385,62 @@ class Model:
                         # diagonal term
                         self.A[link.node0.index, link.node0.index] += df0
                         self.x[link.node0.index] += link.flow0
+                        sum_abs_flow[link.node0.index] += abs(link.flow0)
                         if link.node1.variable:
                             # diagonal term
                             self.A[link.node1.index, link.node1.index] += df0
                             self.x[link.node1.index] -= link.flow0
+                            sum_abs_flow[link.node1.index] += abs(link.flow0)
                             # off diagonal terms
                             self.A[link.node0.index, link.node1.index] -= df0
                             self.A[link.node1.index, link.node0.index] -= df0
                     else:
                         raise NotImplementedError('Two-way flow is not yet implemented')
-            maxf = abs(max(self.x, key=abs))
-            
-            if abs(maxf) > tolerance:
-                status_function('%4d %15.9e' % (iter, maxf))
+
+            residual = numpy.asarray(self.x).reshape(-1)
+            absolute_residual = numpy.abs(residual)
+            maxf = float(absolute_residual.max(initial=0.0))
+            converged = absolute_residual < tolerance
+            if relative_tolerance is not None:
+                relative_by_node = numpy.full(self.size, numpy.inf)
+                numpy.divide(
+                    absolute_residual,
+                    sum_abs_flow,
+                    out=relative_by_node,
+                    where=sum_abs_flow > 0.0,
+                )
+                converged |= relative_by_node <= relative_tolerance
+
+            total_abs_flow = float(sum_abs_flow.sum())
+            if total_abs_flow > 0.0:
+                relative_residual = float(absolute_residual.sum()) / total_abs_flow
             else:
+                relative_residual = 0.0
+
+            if bool(numpy.all(converged)) and iter >= minimum_iterations:
                 status_function('%4d %15.9e < %e' % (iter, maxf, tolerance))
                 # Update the pressure drops, up until now only secondary terms present
                 for link in self.links:
                     if link.node0.variable:
                         link.pdrop += link.node0.pressure - link.node1.pressure
                 return iter
-            info = 0
-            self.x, info = scipy.sparse.linalg.cg(self.A, self.x, maxiter=max_subiter)
+
+            status_function('%4d %15.9e' % (iter, maxf))
+            correction, info = scipy.sparse.linalg.cg(
+                self.A, residual, rtol=1.0e-12, atol=0.0, maxiter=max_subiter
+            )
             if info == 0:
-                # Update the nodal pressures, flows are set above
+                correction_factor = 1.0
+                if relative_residual > 0.30 * previous_relative_residual:
+                    correction_factor = relaxation
+                previous_relative_residual = relative_residual
+
+                # Update the nodal pressures; flows are set above.
                 for node in self.variable_nodes:
-                    node.pressure -= self.x[node.index]
+                    node.pressure -= correction_factor * correction[node.index]
             else:
                 raise RuntimeError('Newton iteration solve failed at %d iterations' % iter)
-        return maxiter
+        raise RuntimeError('Airflow solve failed to converge in %d iterations' % maxiter)
 
 def write_results_csv(nodes, links, csv_file_name: str)   :
     fp = open(csv_file_name, 'w')

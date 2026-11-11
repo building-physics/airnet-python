@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import airnet
 import math
+import pytest
 
 AFDATA_PL2 = '''/*subfile:  afdata.pl2  ******************************************************/
 /
@@ -111,3 +112,19 @@ def test_model_creation():
     assert abs(model.nodes['node-2'].pressure - model.nodes['node-1'].pressure + math.pow(f/(model.links[0].element.turb * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.expt)) < 1.0e-12
     assert abs(model.nodes['node-3'].pressure - model.nodes['node-2'].pressure + math.pow(f/(model.links[1].element.turb * model.nodes['node-1'].sqrt_density), 1.0/model.links[0].element.expt)) < 1.0e-12
     assert model.nodes['node-4'].pressure == -100.0
+
+
+def test_linear_initialization_uses_flow_direction_density():
+    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+
+    assert model.initialize(maxiter=10)
+    assert model.nodes['node-2'].pressure == pytest.approx(-100.0 / 3.0)
+    assert model.nodes['node-3'].pressure == pytest.approx(-200.0 / 3.0)
+
+
+def test_air_movement_reports_nonconvergence():
+    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    assert model.initialize(maxiter=10)
+
+    with pytest.raises(RuntimeError, match='failed to converge'):
+        model.air_movement(maxiter=1, tolerance=0.0)
