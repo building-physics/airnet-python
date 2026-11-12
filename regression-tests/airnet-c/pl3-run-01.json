@@ -1,0 +1,62 @@
+{
+  "case": "PL3",
+  "scenario": "first unmodified run",
+  "network": "AFDATA.PL3",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.PL3",
+  "source_run": 1,
+  "run_control": {
+    "maximum_iterations": 30,
+    "relative_airflow_tolerance": 0.0001,
+    "absolute_airflow_tolerance": 0.000001,
+    "relaxation_coefficient": 0.75
+  },
+  "weather": {
+    "ambient_temperature_c": 20.0,
+    "barometric_pressure_pa": 101325.0,
+    "wind_speed_m_per_s": 0.0,
+    "wind_direction_degrees": 0.0
+  },
+  "expected_iterations": 8,
+  "nodes": {
+    "node-1": {"pressure": 0.0},
+    "node-2": {"pressure": -0.004306290},
+    "node-3": {"pressure": -0.004454742},
+    "node-4": {"pressure": -99.99528},
+    "node-5": {"pressure": -0.004308177},
+    "node-6": {"pressure": -94.11384},
+    "node-7": {"pressure": -94.11384},
+    "node-8": {"pressure": -99.99569},
+    "node-9": {"pressure": -83.50228},
+    "node-10": {"pressure": -83.50228},
+    "node-11": {"pressure": -99.99569},
+    "node-12": {"pressure": -100.0}
+  },
+  "links": {
+    "link-1": {"pressure_drop": 0.0001484519, "flow0": 0.00007107366, "flow1": 0.0},
+    "link-2": {"pressure_drop": 0.0001484519, "flow0": 0.01134486, "flow1": 0.0},
+    "link-3": {"pressure_drop": 0.0001484519, "flow0": 0.04537945, "flow1": 0.0},
+    "link-4": {"pressure_drop": 99.99081, "flow0": 0.02327696, "flow1": 0.0},
+    "link-5": {"pressure_drop": 99.99081, "flow0": 0.03351881, "flow1": 0.0},
+    "link-6": {"pressure_drop": 0.0004133926, "flow0": 0.01893161, "flow1": 0.0},
+    "link-7": {"pressure_drop": 0.0004133926, "flow0": 0.01893161, "flow1": 0.0},
+    "link-8": {"pressure_drop": 0.0004133926, "flow0": 0.01893161, "flow1": 0.0},
+    "link-9": {"pressure_drop": 0.004306290, "flow0": 0.06110233, "flow1": 0.0},
+    "link-10": {"pressure_drop": 0.000001886689, "flow0": 0.0009032812, "flow1": 0.0},
+    "link-11": {"pressure_drop": 94.10953, "flow0": 0.0009032812, "flow1": 0.0},
+    "link-12": {"pressure_drop": 0.000001886689, "flow0": 0.0009032812, "flow1": 0.0},
+    "link-13": {"pressure_drop": 5.881853, "flow0": 0.0009032812, "flow1": 0.0},
+    "link-14": {"pressure_drop": 0.0000002358361, "flow0": 0.0009032812, "flow1": 0.0},
+    "link-15": {"pressure_drop": 83.49798, "flow0": 0.003403328, "flow1": 0.0},
+    "link-16": {"pressure_drop": 0.0000007898390, "flow0": 0.003025180, "flow1": 0.0},
+    "link-17": {"pressure_drop": 0.0000007898390, "flow0": 3.781476e-10, "flow1": 0.0},
+    "link-18": {"pressure_drop": 0.0000007898390, "flow0": 0.0003781476, "flow1": 0.0},
+    "link-19": {"pressure_drop": 16.49342, "flow0": 0.003403329, "flow1": 0.0},
+    "link-20": {"pressure_drop": 0.004306290, "flow0": 0.06110233, "flow1": 0.0}
+  },
+  "tolerances": {
+    "relative": 0.000001,
+    "pressure_absolute": 5e-12,
+    "flow_absolute": 5e-12,
+    "mass_balance_absolute": 0.000001
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "PL1",
+  "scenario": "first unmodified run",
+  "network": "AFDATA.PL1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.PL1",
+  "source_run": 1,
+  "run_control": {
+    "maximum_iterations": 30,
+    "relative_airflow_tolerance": 0.0001,
+    "absolute_airflow_tolerance": 0.000001,
+    "relaxation_coefficient": 0.75
+  },
+  "weather": {
+    "ambient_temperature_c": 20.0,
+    "barometric_pressure_pa": 101325.0,
+    "wind_speed_m_per_s": 0.0,
+    "wind_direction_degrees": 0.0
+  },
+  "expected_iterations": 4,
+  "nodes": {
+    "node-1": {"pressure": 0.0},
+    "node-2": {"pressure": -0.9411767},
+    "node-3": {"pressure": -1.0}
+  },
+  "links": {
+    "link-1": {"pressure_drop": 0.9411767, "flow0": 0.009033202, "flow1": 0.0},
+    "link-2": {"pressure_drop": 0.05882332, "flow0": 0.009033188, "flow1": 0.0}
+  },
+  "tolerances": {
+    "relative": 0.000001,
+    "pressure_absolute": 0.0000005,
+    "flow_absolute": 0.00000001,
+    "mass_balance_absolute": 0.000001
+  }
+}
