@@ -378,8 +378,8 @@ class Model:
             self.x.fill(0.0)
             sum_abs_flow = numpy.zeros(self.size, dtype=numpy.double)
             for link in self.links:
+                pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                 if link.node0.variable:
-                    pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
                     if nf == 1:
                         # diagonal term
@@ -395,6 +395,10 @@ class Model:
                             self.A[link.node0.index, link.node1.index] -= df0
                             self.A[link.node1.index, link.node0.index] -= df0
                     else:
+                        raise NotImplementedError('Two-way flow is not yet implemented')
+                else:
+                    nf, link.flow0, link.flow1 = link.element.flow(link, pdrop)
+                    if nf != 1:
                         raise NotImplementedError('Two-way flow is not yet implemented')
 
             residual = numpy.asarray(self.x).reshape(-1)
@@ -421,8 +425,7 @@ class Model:
                 status_function('%4d %15.9e < %e' % (iter, maxf, tolerance))
                 # Update the pressure drops, up until now only secondary terms present
                 for link in self.links:
-                    if link.node0.variable:
-                        link.pdrop += link.node0.pressure - link.node1.pressure
+                    link.pdrop += link.node0.pressure - link.node1.pressure
                 return iter
 
             status_function('%4d %15.9e' % (iter, maxf))

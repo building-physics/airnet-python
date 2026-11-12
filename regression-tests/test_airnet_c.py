@@ -52,7 +52,12 @@ def variable_node_mass_balance(model):
 
 @pytest.mark.parametrize(
     "fixture_name",
-    ["pl1-run-01.json", "pl2-run-01.json", "pl3-run-01.json"],
+    [
+        "pl1-run-01.json",
+        "pl2-run-01.json",
+        "pl3-run-01.json",
+        "dw1-run-01.json",
+    ],
 )
 def test_airnet_c_single_shot(fixture_name):
     case, model = load_case(fixture_name)

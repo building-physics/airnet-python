@@ -129,8 +129,9 @@ class Afe_Plr:
 
 class Afe_Dwc:
     """Darcy-Weisbach duct flow element."""
-    def __init__(self, length:float=0.0, hdia:float=0.0, area:float=0.0, rough:float=0.0, tdlc:float=0.0,
-                 lflc:float=0.0, ldlc:float=0.0, linit:float=0.0, ed:float=0.0, ld:float=0.0, f:float=0.0):
+    def __init__(self, length:float=0.0, hdia:float=0.0, area:float=0.0,
+                 rough:float=0.0, tdlc:float=0.0, lflc:float=0.0,
+                 ldlc:float=0.0, linit:float=0.0):
         self.length = length # length of the duct (m)
         self.hdia = hdia # hydraulic diameter (m)
         self.area = area # cross sectional area (m^2)
@@ -139,9 +140,10 @@ class Afe_Dwc:
         self.lflc = lflc # laminar friction loss coefficient
         self.ldlc = ldlc # laminar dynamic loss coefficient
         self.linit = linit # laminar initialization coefficient
-        self.ed = ed # relative roughness (rough/hdia)
-        self.ld = ld # relative length (length/hdia)
-        self.f = f # Darcy friction factor
+        self.ed = rough / hdia # relative roughness (rough/hdia)
+        self.ld = length / hdia # relative length (length/hdia)
+        estimate = 1.14 - 0.868589 * math.log(self.ed)
+        self.f = 1.0 / (estimate * estimate) # Darcy friction factor
 
     def type(self):
         """Returns the flow element three-character type.
@@ -152,6 +154,100 @@ class Afe_Dwc:
             The three-character type of the flow element.
         """
         return 'dwc'
+
+    def linearize(self, link, pdrop:float, multiplier:float=1.0,
+                  control:float=1.0):
+        """Compute AIRNET's laminar initialization coefficient."""
+        node = link.node0 if pdrop >= 0.0 else link.node1
+        return (
+            2.0 * node.density * self.area * self.hdia
+            / (node.viscosity * self.linit * self.ld)
+        )
+
+    def _friction_factor(self, reynolds:float):
+        """Update the Darcy friction factor using AIRNET's Colebrook solve."""
+        if self.ed > 1.0e-7:
+            a = self.ed / 3.7
+            b = 2.51 / reynolds
+            coefficient = 0.868589
+            g = 1.0 / math.sqrt(self.f)
+            while True:
+                delta = (
+                    g + coefficient * math.log(a + g * b)
+                ) / (1.0 + coefficient * b / (a + g * b))
+                g -= delta
+                if abs(delta / g) <= 1.0e-5:
+                    break
+            self.f = 1.0 / (g * g)
+        elif reynolds < 1.0e5:
+            self.f = 0.3164 / math.pow(reynolds, 0.25)
+        else:
+            self.f = 0.0032 + 0.221 / math.pow(reynolds, 0.237)
+        return self.f
+
+    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
+                 control:float=1.0):
+        """Compute duct mass flow and AIRNET's pressure derivative."""
+        node = link.node0 if pdrop >= 0.0 else link.node1
+        pressure = abs(pdrop)
+
+        if self.ldlc > 0.001:
+            a2 = self.ldlc / (2.0 * node.density * self.area * self.area)
+            a1 = (
+                node.viscosity * self.lflc * self.ld
+                / (2.0 * node.density * self.area * self.hdia)
+            )
+            root = math.sqrt(a1 * a1 + 4.0 * a2 * pressure)
+            laminar_flow = (root - a1) / (2.0 * a2)
+            laminar_jacobian = 1.0 / root
+        else:
+            laminar_jacobian = (
+                2.0 * node.density * self.area * self.hdia
+                / (node.viscosity * self.lflc * self.ld)
+            )
+            laminar_flow = laminar_jacobian * pressure
+
+        reynolds = (
+            laminar_flow * self.hdia / (node.viscosity * self.area)
+        )
+        turbulent_flow = laminar_flow
+        if reynolds > 10.0:
+            numerator = math.sqrt(2.0 * node.density * pressure) * self.area
+            turbulent_flow = numerator / math.sqrt(
+                self.ld * self.f + self.tdlc
+            )
+            while True:
+                previous = turbulent_flow
+                reynolds = (
+                    turbulent_flow * self.hdia
+                    / (node.viscosity * self.area)
+                )
+                friction = self._friction_factor(reynolds)
+                turbulent_flow = numerator / math.sqrt(
+                    self.ld * friction + self.tdlc
+                )
+                if abs(previous - turbulent_flow) / turbulent_flow <= 0.001:
+                    break
+
+        if laminar_flow <= turbulent_flow:
+            flow = laminar_flow
+            jacobian = laminar_jacobian
+        else:
+            flow = turbulent_flow
+            # AIRNET treats the friction factor as locally constant here.
+            jacobian = 0.5 * turbulent_flow / pressure
+
+        if pdrop < 0.0:
+            flow = -flow
+        return 1, flow, 0.0, jacobian, 0.0
+
+    def flow(self, link, pdrop:float, multiplier:float=1.0,
+             control:float=1.0):
+        """Compute the one-way duct mass flow."""
+        number_of_flows, flow0, flow1, _, _ = self.jacobian(
+            link, pdrop, multiplier, control
+        )
+        return number_of_flows, flow0, flow1
 
 class Afe_Qfr:
     """Quadratic flow element.
@@ -225,7 +321,7 @@ class Afe_Dor(Afe_Plr):
         gdrho = 9.8 * drho
 
         if self.one_way_flow(link, pdrop):
-            return super().calculate(link, pdrop - 0.5 * self.ht * gdrho)
+            return super().flow(link, pdrop - 0.5 * self.ht * gdrho)
         else:
             y = pdrop / gdrho # Possible two-way flow
 
@@ -278,7 +374,7 @@ class Afe_Dor(Afe_Plr):
         gdrho = 9.8 * drho
 
         if self.one_way_flow(link, pdrop):
-            return super().calculate(link, pdrop - 0.5 * self.ht * gdrho)
+            return super().jacobian(link, pdrop - 0.5 * self.ht * gdrho)
         else:
             y = pdrop / gdrho # Possible two-way flow
 

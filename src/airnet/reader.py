@@ -142,9 +142,10 @@ class Reader:
         if len(data) < 4:
             raise BadNetworkInput('Element type "dwc" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
         obj = {'input_type': InputType.ELEMENT, 'type': 'dwc', 'name': name,
-               'len': self.handle_float('dwc', 'len', data[0]), 
-               'dh': self.handle_float('dwc', 'dh', data[1]), 'area': self.handle_float('dwc', 'area', data[2]),
-               'rgh': self.handle_float('dwc', 'rgh', data[3])}
+               'length': self.handle_float('dwc', 'length', data[0]),
+               'hdia': self.handle_float('dwc', 'hdia', data[1]),
+               'area': self.handle_float('dwc', 'area', data[2]),
+               'rough': self.handle_float('dwc', 'rough', data[3])}
         try:
             next_line = self.get_next()
         except StopIteration:
@@ -153,9 +154,9 @@ class Reader:
         if len(data) < 4:
             raise BadNetworkInput('Element type "dwc" with second line at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
         obj['tdlc'] = self.handle_float('dwc', 'tdlc', data[0]) 
-        obj['lflc'] = self.handle_float('dwc', 'lfdc', data[1])
+        obj['lflc'] = self.handle_float('dwc', 'lflc', data[1])
         obj['ldlc'] = self.handle_float('dwc', 'ldlc', data[2]) 
-        obj['init'] = self.handle_float('dwc', 'init', data[3])
+        obj['linit'] = self.handle_float('dwc', 'linit', data[3])
         return obj
     def read_dor(self, name, input_string):
         # element name dor init lam turb expt

@@ -209,6 +209,24 @@ link   link-4   node-1   0.0   node-4   0.0   duct-10x25  null
 
 '''
 
+
+def test_afdata_dw1_duct_fields_match_domain_model():
+    records = list(airnet.Reader(iter(AFDATA_DW1.splitlines())))
+    duct = next(record for record in records if record.get('name') == 'duct-2x25')
+
+    assert duct['length'] == 2.0
+    assert duct['hdia'] == 0.25
+    assert duct['area'] == 0.04909
+    assert duct['rough'] == 0.00015
+    assert duct['tdlc'] == 0.0
+    assert duct['lflc'] == 64.0
+    assert duct['ldlc'] == 0.0
+    assert duct['linit'] == 128.0
+
+    model = airnet.Model(records)
+    assert model.elements['duct-2x25'].length == 2.0
+    assert model.elements['duct-2x25'].hdia == 0.25
+
 AFDATA_CF1 = '''/*subfile:  afdata.cf1  ******************************************************/
 /
 title constant flow test #1 input file
