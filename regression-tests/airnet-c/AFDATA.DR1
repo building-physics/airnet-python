@@ -1,0 +1,15 @@
+/* Simplified from AIRNET-C/c/tests/AFDATA.DR1 for doorway-only regression.  */
+/* This is not the full historical DR1 input: the ten PLR links are omitted. */
+/
+title  doorway test #1 input file - simplified doorway-only case
+
+node   node-1    c   0.0   18.0    0.0
+node   node-2    v   0.0   22.0
+
+element  dor-1.60  dor  0.015575  0.015575   1.76494   .500    doorway - 1.6m^2
+                        0.0001    2.0       0.8        0.78
+
+link   link-11  node-1  -1.0   node-2  -1.0   dor-1.60   null
+
+*********
+

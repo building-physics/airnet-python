@@ -69,6 +69,7 @@ class Link:
         self.wpmod = wpmod
         self.multiplier = mult
         self.flipped = flipped
+        self.flow_count = 0
         self.flow0 = 0.0
         self.flow1 = 0.0
         self.pdrop = 0.0
@@ -302,6 +303,7 @@ class Model:
             for link in self.links:
                 pdrop = link.node0.pressure - link.node1.pressure
                 c = link.element.linearize(link, pdrop=pdrop)
+                link.flow_count = 1
                 link.flow0 = c*(link.node0.pressure-link.node1.pressure)
                 link.flow1 = 0.0
             return True
@@ -381,25 +383,23 @@ class Model:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                 if link.node0.variable:
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
-                    if nf == 1:
-                        # diagonal term
-                        self.A[link.node0.index, link.node0.index] += df0
-                        self.x[link.node0.index] += link.flow0
-                        sum_abs_flow[link.node0.index] += abs(link.flow0)
-                        if link.node1.variable:
-                            # diagonal term
-                            self.A[link.node1.index, link.node1.index] += df0
-                            self.x[link.node1.index] -= link.flow0
-                            sum_abs_flow[link.node1.index] += abs(link.flow0)
-                            # off diagonal terms
-                            self.A[link.node0.index, link.node1.index] -= df0
-                            self.A[link.node1.index, link.node0.index] -= df0
-                    else:
-                        raise NotImplementedError('Two-way flow is not yet implemented')
+                    link.flow_count = nf
+                    flow = link.flow0 + link.flow1
+                    derivative = df0 + df1
+                    # AIRNET assembles the net flow and net derivative while
+                    # retaining both components on the link for reporting.
+                    self.A[link.node0.index, link.node0.index] += derivative
+                    self.x[link.node0.index] += flow
+                    sum_abs_flow[link.node0.index] += abs(flow)
+                    if link.node1.variable:
+                        self.A[link.node1.index, link.node1.index] += derivative
+                        self.x[link.node1.index] -= flow
+                        sum_abs_flow[link.node1.index] += abs(flow)
+                        self.A[link.node0.index, link.node1.index] -= derivative
+                        self.A[link.node1.index, link.node0.index] -= derivative
                 else:
                     nf, link.flow0, link.flow1 = link.element.flow(link, pdrop)
-                    if nf != 1:
-                        raise NotImplementedError('Two-way flow is not yet implemented')
+                    link.flow_count = nf
 
             residual = numpy.asarray(self.x).reshape(-1)
             absolute_residual = numpy.abs(residual)

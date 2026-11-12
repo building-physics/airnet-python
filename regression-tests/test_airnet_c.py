@@ -22,9 +22,10 @@ def load_case(name):
 
 
 def input_oriented_link_values(link):
-    """Return one-way link results in the orientation used by the input file."""
+    """Return link results in the orientation used by the input file."""
     direction = -1.0 if link.flipped else 1.0
     return {
+        "flow_count": link.flow_count,
         "pressure_drop": direction * link.pdrop,
         "flow0": direction * link.flow0,
         "flow1": direction * link.flow1,
@@ -57,6 +58,7 @@ def variable_node_mass_balance(model):
         "pl2-run-01.json",
         "pl3-run-01.json",
         "dw1-run-01.json",
+        "dr1-run-01.json",
     ],
 )
 def test_airnet_c_single_shot(fixture_name):
@@ -85,6 +87,8 @@ def test_airnet_c_single_shot(fixture_name):
     links = {link.name: link for link in model.links}
     for name, expected in case["links"].items():
         actual = input_oriented_link_values(links[name])
+        if "flow_count" in expected:
+            assert actual["flow_count"] == expected["flow_count"]
         assert actual["pressure_drop"] == pytest.approx(
             expected["pressure_drop"],
             rel=tolerances["relative"],

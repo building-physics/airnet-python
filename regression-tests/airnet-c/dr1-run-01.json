@@ -1,0 +1,41 @@
+{
+  "case": "DR1",
+  "scenario": "doorway-only simplified run",
+  "network": "AFDATA.DR1",
+  "simplified": true,
+  "scope_note": "Not the full historical DR1 input; the ten PLR links are omitted.",
+  "derived_from": "AIRNET-C/c/tests/AFDATA.DR1",
+  "source_report": "reviewed AIRNET-C run of the simplified doorway-only input",
+  "source_run": 1,
+  "run_control": {
+    "maximum_iterations": 30,
+    "relative_airflow_tolerance": 0.0001,
+    "absolute_airflow_tolerance": 0.000001,
+    "relaxation_coefficient": 0.75
+  },
+  "weather": {
+    "ambient_temperature_c": 20.0,
+    "barometric_pressure_pa": 101325.0,
+    "wind_speed_m_per_s": 0.0,
+    "wind_direction_degrees": 0.0
+  },
+  "expected_iterations": 7,
+  "nodes": {
+    "node-1": {"pressure": 0.0},
+    "node-2": {"pressure": 0.0003661276}
+  },
+  "links": {
+    "link-11": {
+      "flow_count": 2,
+      "pressure_drop": 0.1606598,
+      "flow0": -0.2590595,
+      "flow1": 0.2590599
+    }
+  },
+  "tolerances": {
+    "relative": 0.000001,
+    "pressure_absolute": 0.0000005,
+    "flow_absolute": 0.0000005,
+    "mass_balance_absolute": 0.000001
+  }
+}

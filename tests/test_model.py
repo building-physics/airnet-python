@@ -128,3 +128,85 @@ def test_air_movement_reports_nonconvergence():
 
     with pytest.raises(RuntimeError, match='failed to converge'):
         model.air_movement(maxiter=1, tolerance=0.0)
+
+
+class TwoWayElement:
+    def type(self):
+        return 'two'
+
+    def linearize(self, link, pdrop):
+        return 2.0
+
+    def jacobian(self, link, pdrop):
+        return 2, pdrop + 2.0, pdrop - 1.0, 1.0, 1.0
+
+    def flow(self, link, pdrop):
+        nf, flow0, flow1, _, _ = self.jacobian(link, pdrop)
+        return nf, flow0, flow1
+
+
+def two_way_network(variable_node=True):
+    return [
+        {'input_type': airnet.InputType.TITLE, 'title': 'two-way assembly'},
+        {
+            'input_type': airnet.InputType.NODE,
+            'name': 'node-1',
+            'type': 'v' if variable_node else 'c',
+            'ht': 0.0,
+            'temp': 20.0,
+            'pres': 0.0,
+        },
+        {
+            'input_type': airnet.InputType.NODE,
+            'name': 'node-2',
+            'type': 'c',
+            'ht': 0.0,
+            'temp': 20.0,
+            'pres': 0.0,
+        },
+        {
+            'input_type': airnet.InputType.ELEMENT,
+            'type': 'two',
+            'name': 'two-way',
+        },
+        {
+            'input_type': airnet.InputType.LINK,
+            'name': 'link-1',
+            'node-1': 'node-1',
+            'ht-1': 0.0,
+            'node-2': 'node-2',
+            'ht-2': 0.0,
+            'element': 'two-way',
+            'wind': None,
+            'wpmod': 0.0,
+        },
+    ]
+
+
+def test_air_movement_assembles_two_way_flow_and_jacobian_components():
+    model = airnet.Model(
+        two_way_network(), element_lookup={'two': TwoWayElement}
+    )
+    assert model.initialize(maxiter=10)
+
+    iterations = model.air_movement(maxiter=10, minimum_iterations=2)
+
+    assert iterations == 2
+    assert model.nodes['node-1'].pressure == pytest.approx(-0.5)
+    assert model.links[0].flow_count == 2
+    assert model.links[0].flow0 == pytest.approx(1.5)
+    assert model.links[0].flow1 == pytest.approx(-1.5)
+
+
+def test_air_movement_retains_fixed_to_fixed_two_way_flows():
+    model = airnet.Model(
+        two_way_network(variable_node=False),
+        element_lookup={'two': TwoWayElement},
+    )
+
+    iterations = model.air_movement(maxiter=10)
+
+    assert iterations == 1
+    assert model.links[0].flow_count == 2
+    assert model.links[0].flow0 == pytest.approx(2.0)
+    assert model.links[0].flow1 == pytest.approx(-1.0)

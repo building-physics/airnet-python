@@ -19,3 +19,8 @@ single-shot fixtures named `<case>-run-<number>.json`, such as
 `pl1-run-01.json`. Do not update expected values from Python output. New or
 changed expected values must be checked against the historical report or a
 reviewed run of AIRNET-C.
+
+`AFDATA.DR1` is an explicitly simplified, doorway-only derivative of the
+historical input. It retains the two nodes, DOR element, and `link-11`, but
+omits the ten PLR links. It is not the full historical DR1 input, and its
+expected equilibrium comes from a reviewed AIRNET-C run of the reduced case.

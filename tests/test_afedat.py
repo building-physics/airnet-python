@@ -18,6 +18,27 @@ def make_node(density, viscosity, temperature=293.15):
     )
 
 
+@pytest.mark.parametrize("pressure", [-1.0, 0.0, 1.0])
+def test_plr_one_way_return_contract(pressure):
+    element = Afe_Plr(init=0.01, lam=0.01, turb=0.1, expt=0.5)
+    link = SimpleNamespace(
+        node0=make_node(density=1.2, viscosity=1.8e-5),
+        node1=make_node(density=0.9, viscosity=2.0e-5),
+    )
+
+    count, flow0, flow1, derivative0, derivative1 = element.jacobian(
+        link, pressure
+    )
+
+    assert count == 1
+    assert flow1 == 0.0
+    assert derivative1 == 0.0
+    assert element.flow(link, pressure) == pytest.approx(
+        (count, flow0, flow1)
+    )
+    assert derivative0 > 0.0
+
+
 def test_dwc_linearization_uses_upwind_properties():
     element = Afe_Dwc(
         length=2.0,
@@ -59,11 +80,16 @@ def test_dwc_laminar_jacobian_matches_finite_difference():
     pressure = 1.0e-8
     step = 1.0e-10
 
-    _, flow, _, derivative, _ = element.jacobian(link, pressure)
+    count, flow, flow1, derivative, derivative1 = element.jacobian(
+        link, pressure
+    )
     _, upper_flow, _ = element.flow(link, pressure + step)
     _, lower_flow, _ = element.flow(link, pressure - step)
     finite_difference = (upper_flow - lower_flow) / (2.0 * step)
 
+    assert count == 1
+    assert flow1 == 0.0
+    assert derivative1 == 0.0
     assert flow == pytest.approx(derivative * pressure)
     assert derivative == pytest.approx(finite_difference)
 
