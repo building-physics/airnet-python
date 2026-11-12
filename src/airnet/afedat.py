@@ -244,10 +244,10 @@ class Afe_Dwc:
     def flow(self, link, pdrop:float, multiplier:float=1.0,
              control:float=1.0):
         """Compute the one-way duct mass flow."""
-        number_of_flows, flow0, flow1, _, _ = self.jacobian(
+        nf, flow0, flow1, _, _ = self.jacobian(
             link, pdrop, multiplier, control
         )
-        return number_of_flows, flow0, flow1
+        return nf, flow0, flow1
 
 class Afe_Qfr:
     """Quadratic flow element.
@@ -297,61 +297,23 @@ class Afe_Dor(Afe_Plr):
         """
         return 'dor'
     
-    def one_way_flow(self, link, pdrop:float):
-        return (link.node0.temperature - link.node1.temperature) < self.dtmin
-
-    def flow(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
-        """Compute the flow through an element.
-        
-        Parameters
-        ----------
-        link:
-            The link object that the linear coefficient is needed for.
-        pdrop:
-            The pressure drop driving the flow.
-        multiplier: optional
-            The multiplier determines how many elements this linkage represents. Defaults to 1.
-        control: optional
-            The control signal that is used to control flow for some elements. Defaults to 1.
-        """
-        f1 = 0.0 # computed flow rate
-        f2 = 0.0 # computed flow rate
-
+    def one_way_flow(self, link):
+        temperature_difference = link.node0.temperature - link.node1.temperature
         drho = link.node0.density - link.node1.density
-        gdrho = 9.8 * drho
+        return abs(temperature_difference) < self.dtmin or drho == 0.0
 
-        if self.one_way_flow(link, pdrop):
-            return super().flow(link, pdrop - 0.5 * self.ht * gdrho)
-        else:
-            y = pdrop / gdrho # Possible two-way flow
+    def _power_law_pressure_drop(self, link, pdrop):
+        drho = link.node0.density - link.node1.density
+        return pdrop - 0.5 * self.ht * 9.8 * drho
 
-            c = self.sqrt_two * self.wd * self.cd
-            f0 = self.two_thirds * c * math.sqrt(abs(gdrho*y))*abs(y)
-            dfh = c * math.sqrt(abs((self.ht-y)/gdrho))
-            fh = self.two_thirds * dfh * abs(gdrho*(self.ht-y))
-            nf = 1
+    def linearize(self, link, pdrop:float, multiplier:float=1.0,
+                  control:float=1.0):
+        """Compute the power-law initialization coefficient."""
+        adjusted_pdrop = self._power_law_pressure_drop(link, pdrop)
+        return super().linearize(link, adjusted_pdrop, multiplier, control)
 
-            if y < 0.0: # One-way flow (1 to 0)
-                if drho > 0.0:
-                    f1 = -link.node1.sqrt_density * abs(fh-f0)
-                else:
-                    f1 =  link.node0.sqrt_density * abs(fh-f0)
-            elif y > self.ht: # One-way flow (0 to 1)
-                if drho > 0.0:
-                    f1 =  link.node0.sqrt_density * abs(fh-f0)
-                else:
-                    f1 = -link.node1.sqrt_density * abs(fh-f0)
-            else: # Two-way flow
-                nf = 2
-                if drho > 0.0:
-                    f1 = -link.node1.sqrt_density * fh
-                    f2 =  link.node0.sqrt_density * f0
-                else:
-                    f1 =  link.node0.sqrt_density * fh
-                    f2 = -link.node1.sqrt_density * f0
-        return nf, f1, f2
-
-    def jacobian(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
+    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
+                 control:float=1.0):
         """Compute the flow through an element and the associated Jacobian terms.
         
         Parameters
@@ -373,45 +335,56 @@ class Afe_Dor(Afe_Plr):
         drho = link.node0.density - link.node1.density
         gdrho = 9.8 * drho
 
-        if self.one_way_flow(link, pdrop):
-            return super().jacobian(link, pdrop - 0.5 * self.ht * gdrho)
-        else:
-            y = pdrop / gdrho # Possible two-way flow
+        if self.one_way_flow(link):
+            adjusted_pdrop = self._power_law_pressure_drop(link, pdrop)
+            return super().jacobian(
+                link, adjusted_pdrop, multiplier, control
+            )
 
-            c = self.sqrt_two * self.wd * self.cd
-            df0 = c * math.sqrt(abs(pdrop))/abs(gdrho)
-            f0 = self.two_thirds * c * math.sqrt(abs(gdrho*y))*abs(y)
-            dfh = c * math.sqrt(abs((self.ht-y)/gdrho))
-            fh = self.two_thirds * dfh * abs(gdrho*(self.ht-y))
-            nf = 1
+        y = pdrop / gdrho # Possible two-way flow
 
-            if y < 0.0: # One-way flow (1 to 0)
-                if drho > 0.0:
-                    f1 = -link.node1.sqrt_density * abs(fh-f0)
-                    df1 = link.node1.sqrt_density * abs(dfh-df0)
-                else:
-                    f1 =  link.node0.sqrt_density * abs(fh-f0)
-                    df1 = link.node0.sqrt_density * abs(dfh-df0)
-            elif y > self.ht: # One-way flow (0 to 1)
-                if drho > 0.0:
-                    f1 =  link.node0.sqrt_density * abs(fh-f0)
-                    df1 = link.node0.sqrt_density * abs(dfh-df0)
-                else:
-                    f1 = -link.node1.sqrt_density * abs(fh-f0)
-                    df1 = link.node1.sqrt_density * abs(dfh-df0)
-            else: # Two-way flow
-                nf = 2
-                if drho > 0.0:
-                    f1 = -link.node1.sqrt_density * fh
-                    df1 = link.node1.sqrt_density * dfh
-                    f2 =  link.node0.sqrt_density * f0
-                    df2 = link.node0.sqrt_density * df0
-                else:
-                    f1 =  link.node0.sqrt_density * fh
-                    df1 = link.node0.sqrt_density * dfh
-                    f2 = -link.node1.sqrt_density * f0
-                    df2 = link.node1.sqrt_density * df0
+        c = self.sqrt_two * self.wd * self.cd
+        df0 = c * math.sqrt(abs(pdrop))/abs(gdrho)
+        f0 = self.two_thirds * c * math.sqrt(abs(gdrho*y))*abs(y)
+        dfh = c * math.sqrt(abs((self.ht-y)/gdrho))
+        fh = self.two_thirds * dfh * abs(gdrho*(self.ht-y))
+        nf = 1
+
+        if y < 0.0: # One-way flow (1 to 0)
+            if drho > 0.0:
+                f1 = -link.node1.sqrt_density * abs(fh-f0)
+                df1 = link.node1.sqrt_density * abs(dfh-df0)
+            else:
+                f1 =  link.node0.sqrt_density * abs(fh-f0)
+                df1 = link.node0.sqrt_density * abs(dfh-df0)
+        elif y > self.ht: # One-way flow (0 to 1)
+            if drho > 0.0:
+                f1 =  link.node0.sqrt_density * abs(fh-f0)
+                df1 = link.node0.sqrt_density * abs(dfh-df0)
+            else:
+                f1 = -link.node1.sqrt_density * abs(fh-f0)
+                df1 = link.node1.sqrt_density * abs(dfh-df0)
+        else: # Two-way flow
+            nf = 2
+            if drho > 0.0:
+                f1 = -link.node1.sqrt_density * fh
+                df1 = link.node1.sqrt_density * dfh
+                f2 =  link.node0.sqrt_density * f0
+                df2 = link.node0.sqrt_density * df0
+            else:
+                f1 =  link.node0.sqrt_density * fh
+                df1 = link.node0.sqrt_density * dfh
+                f2 = -link.node1.sqrt_density * f0
+                df2 = link.node1.sqrt_density * df0
         return nf, f1, f2, df1, df2
+
+    def flow(self, link, pdrop:float, multiplier:float=1.0,
+             control:float=1.0):
+        """Compute doorway flow without returning derivative terms."""
+        nf, flow0, flow1, _, _ = self.jacobian(
+            link, pdrop, multiplier, control
+        )
+        return nf, flow0, flow1
 
 class Afe_Cfr:
     def __init__(self, flow:float=0.0):

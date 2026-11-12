@@ -5,11 +5,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from airnet.afedat import Afe_Dwc
+from airnet.afedat import Afe_Dor, Afe_Dwc, Afe_Plr
 
 
-def make_node(density, viscosity):
-    return SimpleNamespace(density=density, viscosity=viscosity)
+def make_node(density, viscosity, temperature=293.15):
+    return SimpleNamespace(
+        density=density,
+        viscosity=viscosity,
+        temperature=temperature,
+        sqrt_density=density**0.5,
+        dvisc=density / viscosity,
+    )
 
 
 def test_dwc_linearization_uses_upwind_properties():
@@ -88,3 +94,148 @@ def test_dwc_turbulent_flow_matches_dw1_parallel_duct():
 
     assert flow == pytest.approx(0.2448779, rel=1.0e-6)
     assert derivative == pytest.approx(0.5 * flow / 9.0)
+
+
+def make_doorway():
+    return Afe_Dor(
+        init=0.015575,
+        lam=0.015575,
+        turb=1.76494,
+        expt=0.5,
+        dtmin=0.0001,
+        ht=2.0,
+        wd=0.8,
+        cd=0.78,
+    )
+
+
+def test_dor_uses_midheight_power_law_below_temperature_threshold():
+    doorway = make_doorway()
+    power_law = Afe_Plr(
+        init=doorway.init,
+        lam=doorway.lam,
+        turb=doorway.turb,
+        expt=doorway.expt,
+    )
+    link = SimpleNamespace(
+        node0=make_node(1.20, 1.8e-5, temperature=293.15),
+        node1=make_node(1.10, 1.9e-5, temperature=293.15005),
+    )
+    pressure = 1.25
+    adjusted_pressure = pressure - 0.5 * doorway.ht * 9.8 * 0.10
+
+    assert doorway.linearize(link, pressure) == pytest.approx(
+        power_law.linearize(link, adjusted_pressure)
+    )
+    assert doorway.jacobian(link, pressure) == pytest.approx(
+        power_law.jacobian(link, adjusted_pressure)
+    )
+
+
+def test_dor_uses_power_law_when_density_difference_is_zero():
+    doorway = make_doorway()
+    power_law = Afe_Plr(
+        init=doorway.init,
+        lam=doorway.lam,
+        turb=doorway.turb,
+        expt=doorway.expt,
+    )
+    link = SimpleNamespace(
+        node0=make_node(1.20, 1.8e-5, temperature=291.15),
+        node1=make_node(1.20, 1.8e-5, temperature=295.15),
+    )
+
+    assert doorway.jacobian(link, 0.25) == pytest.approx(
+        power_law.jacobian(link, 0.25)
+    )
+
+
+def test_dor_two_way_component_jacobians_match_finite_difference():
+    doorway = make_doorway()
+    link = SimpleNamespace(
+        node0=make_node(1.20, 1.8e-5, temperature=291.15),
+        node1=make_node(1.10, 1.9e-5, temperature=295.15),
+    )
+    pressure = 0.98
+    step = 1.0e-6
+
+    count, flow0, flow1, derivative0, derivative1 = doorway.jacobian(
+        link, pressure
+    )
+    _, upper0, upper1 = doorway.flow(link, pressure + step)
+    _, lower0, lower1 = doorway.flow(link, pressure - step)
+
+    assert count == 2
+    assert flow0 < 0.0 < flow1
+    assert derivative0 == pytest.approx(
+        (upper0 - lower0) / (2.0 * step), rel=1.0e-6
+    )
+    assert derivative1 == pytest.approx(
+        (upper1 - lower1) / (2.0 * step), rel=1.0e-6
+    )
+    assert doorway.flow(link, pressure) == pytest.approx(
+        (count, flow0, flow1)
+    )
+
+
+def test_dor_two_way_flow_reverses_with_link_orientation():
+    doorway = make_doorway()
+    node0 = make_node(1.20, 1.8e-5, temperature=291.15)
+    node1 = make_node(1.10, 1.9e-5, temperature=295.15)
+    forward_link = SimpleNamespace(node0=node0, node1=node1)
+    reverse_link = SimpleNamespace(node0=node1, node1=node0)
+
+    forward = doorway.jacobian(forward_link, 0.98)
+    reverse = doorway.jacobian(reverse_link, -0.98)
+
+    assert forward[0] == reverse[0] == 2
+    assert reverse[1] == pytest.approx(-forward[1])
+    assert reverse[2] == pytest.approx(-forward[2])
+    assert reverse[3] == pytest.approx(forward[3])
+    assert reverse[4] == pytest.approx(forward[4])
+
+
+@pytest.mark.parametrize(
+    ("pressure", "expected_sign"),
+    [(-0.49, -1.0), (2.45, 1.0)],
+)
+def test_dor_neutral_plane_outside_doorway_is_one_way(
+    pressure, expected_sign
+):
+    doorway = make_doorway()
+    link = SimpleNamespace(
+        node0=make_node(1.20, 1.8e-5, temperature=291.15),
+        node1=make_node(1.10, 1.9e-5, temperature=295.15),
+    )
+
+    count, flow0, flow1, derivative0, derivative1 = doorway.jacobian(
+        link, pressure
+    )
+
+    assert count == 1
+    assert flow0 * expected_sign > 0.0
+    assert flow1 == 0.0
+    assert derivative0 > 0.0
+    assert derivative1 == 0.0
+
+
+@pytest.mark.parametrize(
+    ("neutral_height", "zero_flow_index"),
+    [(0.0, 2), (2.0, 1)],
+)
+def test_dor_neutral_plane_boundaries_remain_two_way(
+    neutral_height, zero_flow_index
+):
+    doorway = make_doorway()
+    link = SimpleNamespace(
+        node0=make_node(1.20, 1.8e-5, temperature=291.15),
+        node1=make_node(1.10, 1.9e-5, temperature=295.15),
+    )
+    pressure = neutral_height * 9.8 * (
+        link.node0.density - link.node1.density
+    )
+
+    result = doorway.jacobian(link, pressure)
+
+    assert result[0] == 2
+    assert result[zero_flow_index] == pytest.approx(0.0)
