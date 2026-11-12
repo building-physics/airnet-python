@@ -456,71 +456,6 @@ def write_results_csv(nodes, links, csv_file_name: str)   :
         fp.write('link, %s, 0, %21.15e, %21.15e, %21.15e\n' % (link.name, link.pdrop, link.flow0, link.flow1))
     fp.close()
 
-def summarize_input():
-    parser = argparse.ArgumentParser(description='Summarize an AIRNET network input file.')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        default=False, help='operate verbosely')
-    #parser.add_argument('-d', '--debug', dest='debug', action='store_true',
-    #                    default=False, help='produce debug output')
-    parser.add_argument('input', metavar='NETWORK_FILE')
-
-    args = parser.parse_args()
-
-    if args.verbose:
-        print('Opening input file "%s"...' % args.input)
-
-    if not os.path.exists(args.input):
-        print('summarize_input: error: the input file "%s" does not exist' % args.input)
-        return 1
-
-    fp = open(args.input, 'r')
-    reader = Reader(fp)
-    if args.verbose:
-        print('Reading input file "%s"...' % args.input)
-    items = []
-    for item in reader:
-        items.append(item)
-    if args.verbose:
-        print('Closing input file "%s".' % args.input)
-    fp.close()
-
-    if reader.title:
-        print('Title:', reader.title)
-
-    print('\nElements:\n=========')
-    elements = {}
-    nodes = 0
-    links = 0
-    for el in items:
-        if el['input_type'] == InputType.ELEMENT:
-            if el['type'] in elements:
-                elements[el['type']] += 1
-            else:
-                elements[el['type']] = 1
-        elif el['input_type'] == InputType.NODE:
-            nodes += 1
-        elif el['input_type'] == InputType.LINK:
-            links += 1
-    for key, value in elements.items():
-        print(key, value)
-
-    print('\nNodes: %s\n\nLinks: %s' % (nodes, links))
-
-    if args.verbose:
-        print('Done.')
-    return 0
-
-def simulate():
-    parser = argparse.ArgumentParser(description='Simulate airflow in an AIRNET network.')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        default=False, help='operate verbosely')
-    #parser.add_argument('-d', '--debug', dest='debug', action='store_true',
-    #                    default=False, help='produce debug output')
-    parser.add_argument('input', metavar='NETWORK_FILE')
-
-    args = parser.parse_args()
-    run_simulate(args.input, verbose=args.verbose)
-
 def run_simulate(input_file, verbose=False, global_temperature=None, global_density=None):
 
     if verbose:
@@ -557,5 +492,3 @@ def run_simulate(input_file, verbose=False, global_temperature=None, global_dens
 
     write_results_csv([el for el in model.nodes.values() if el.index is not None], model.links, 'airnetsim.csv')
 
-def gui_simulate():
-    pass
