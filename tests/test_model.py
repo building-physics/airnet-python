@@ -1,9 +1,12 @@
 # SPDX-FileCopyrightText: 2023-present Oak Ridge National Laboratory, managed by UT-Battelle
 #
 # SPDX-License-Identifier: BSD-3-Clause
-import airnet
+import copy
 import math
+
 import pytest
+
+import airnet
 
 AFDATA_PL2 = '''/*subfile:  afdata.pl2  ******************************************************/
 /
@@ -210,3 +213,164 @@ def test_air_movement_retains_fixed_to_fixed_two_way_flows():
     assert model.links[0].flow_count == 2
     assert model.links[0].flow0 == pytest.approx(2.0)
     assert model.links[0].flow1 == pytest.approx(-1.0)
+
+
+def valid_network_records():
+    return [
+        {'input_type': airnet.InputType.TITLE, 'title': 'validation network'},
+        {
+            'input_type': airnet.InputType.NODE,
+            'name': 'variable',
+            'type': 'v',
+            'ht': 0.0,
+            'temp': 20.0,
+        },
+        {
+            'input_type': airnet.InputType.NODE,
+            'name': 'fixed',
+            'type': 'c',
+            'ht': 0.0,
+            'temp': 20.0,
+            'pres': 0.0,
+        },
+        {
+            'input_type': airnet.InputType.ELEMENT,
+            'name': 'opening',
+            'type': 'plr',
+            'init': 1.0,
+            'lam': 1.0,
+            'turb': 1.0,
+            'expt': 0.5,
+        },
+        {
+            'input_type': airnet.InputType.LINK,
+            'name': 'connection',
+            'node-1': 'variable',
+            'ht-1': 0.0,
+            'node-2': 'fixed',
+            'ht-2': 0.0,
+            'element': 'opening',
+        },
+    ]
+
+
+def record_named(records, name):
+    return next(record for record in records if record.get('name') == name)
+
+
+def test_model_construction_does_not_mutate_input_records():
+    records = valid_network_records()
+    original = copy.deepcopy(records)
+
+    airnet.Model(records)
+
+    assert records == original
+
+
+@pytest.mark.parametrize(
+    ('record_name', 'exception', 'message'),
+    [
+        ('variable', airnet.DuplicateNetworkName, 'Node "variable"'),
+        ('opening', airnet.DuplicateNetworkName, 'Element "opening"'),
+        ('connection', airnet.DuplicateNetworkName, 'Link "connection"'),
+    ],
+)
+def test_model_rejects_duplicate_names(record_name, exception, message):
+    records = valid_network_records()
+    records.append(copy.deepcopy(record_named(records, record_name)))
+
+    with pytest.raises(exception, match=message):
+        airnet.Model(records)
+
+
+@pytest.mark.parametrize(
+    ('field', 'missing_name', 'message'),
+    [
+        ('node-1', 'missing-node', 'undefined node "missing-node"'),
+        ('element', 'missing-element', 'undefined element "missing-element"'),
+    ],
+)
+def test_model_rejects_missing_link_references(field, missing_name, message):
+    records = valid_network_records()
+    record_named(records, 'connection')[field] = missing_name
+
+    with pytest.raises(airnet.MissingNetworkReference, match=message):
+        airnet.Model(records)
+
+
+def test_model_rejects_disconnected_nodes():
+    records = valid_network_records()
+    records.append(
+        {
+            'input_type': airnet.InputType.NODE,
+            'name': 'unconnected',
+            'type': 'c',
+            'ht': 0.0,
+            'temp': 20.0,
+            'pres': 0.0,
+        }
+    )
+
+    with pytest.raises(airnet.BadNetwork, match='Disconnected nodes found: unconnected'):
+        airnet.Model(records)
+
+
+def test_model_rejects_variable_component_without_fixed_pressure_node():
+    records = valid_network_records()
+    fixed = record_named(records, 'fixed')
+    fixed['type'] = 'v'
+    fixed.pop('pres')
+
+    with pytest.raises(
+        airnet.BadNetwork,
+        match='Variable-pressure component has no fixed-pressure node',
+    ):
+        airnet.Model(records)
+
+
+def test_model_rejects_unsupported_solver_element():
+    records = valid_network_records()
+    element = record_named(records, 'opening')
+    element.clear()
+    element.update(
+        {
+            'input_type': airnet.InputType.ELEMENT,
+            'name': 'opening',
+            'type': 'qfr',
+            'a': 1.0,
+            'b': 1.0,
+        }
+    )
+
+    with pytest.raises(
+        airnet.UnsupportedNetworkFeature,
+        match='unsupported solver element type "qfr"',
+    ):
+        airnet.Model(records)
+
+
+@pytest.mark.parametrize(
+    ('updates', 'message'),
+    [
+        ({'wind': 'wind-profile', 'wpmod': 1.0}, 'wind-pressure behavior'),
+        ({'mult': 2.0}, 'unsupported multiplier'),
+        ({'control': 0.5}, 'unsupported control behavior'),
+    ],
+)
+def test_model_rejects_unsupported_link_features(updates, message):
+    records = valid_network_records()
+    record_named(records, 'connection').update(updates)
+
+    with pytest.raises(airnet.UnsupportedNetworkFeature, match=message):
+        airnet.Model(records)
+
+
+def test_model_rejects_unsupported_ambient_node_behavior():
+    records = valid_network_records()
+    record_named(records, 'fixed')['type'] = 'a'
+
+    with pytest.raises(
+        airnet.UnsupportedNetworkFeature,
+        match='unsupported ambient-node behavior',
+    ):
+        airnet.Model(records)

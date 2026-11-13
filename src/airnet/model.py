@@ -1,14 +1,17 @@
 # SPDX-FileCopyrightText: 2023-present Oak Ridge National Laboratory, managed by UT-Battelle
 #
 # SPDX-License-Identifier: BSD-3-Clause
-from __future__ import annotations # Remove when dropping 3.9
-import argparse
-import os
+from __future__ import annotations
+
 import math
-import scipy
+import os
+
 import numpy
+import scipy
+
 from .afedat import object_lookup
-from .reader import Reader, InputType
+from .reader import InputType, Reader
+
 
 def devnull(msg: str):
     return
@@ -76,50 +79,219 @@ class Link:
 
 class BadNetwork(Exception):
     """Raised if the network is bad."""
-    pass
+
+
+class DuplicateNetworkName(BadNetwork):
+    """Raised when a node, element, or link name is defined more than once."""
+
+
+class MissingNetworkReference(BadNetwork):
+    """Raised when a link references a node or element that is not defined."""
+
+
+class UnsupportedNetworkFeature(BadNetwork):
+    """Raised when input requests behavior that is not implemented."""
+
 
 class Model:
     """A class containing nodes, links, and other data representing a pressure network.
     """
+    supported_element_types = frozenset({'plr', 'dwc', 'dor'})
+
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
                  link_object=Link, global_temperature:float|None=None, global_density:float|None=None):
         self.title = ''
         self.nodes = {}
         self.links = []
         self.elements = {}
-        # Handle the network inputs
+
+        # Copy every record before removing construction-only fields. Reader
+        # output is also part of the public API and remains owned by the caller.
         links = []
-        for el in network_input:
-            if el['input_type'] == InputType.TITLE:
-                self.title = el['title']
-            elif el['input_type'] == InputType.NODE:
-                variable = el.pop('type', 'c') == 'v'
-                el.pop('input_type')
-                self.nodes[el['name']] = node_object(variable=variable, **el)
-            elif el['input_type'] == InputType.LINK:
-                el.pop('input_type')
-                links.append(el)
-            elif el['input_type'] == InputType.ELEMENT:
-                el.pop('input_type')
-                type = el.pop('type')
-                name = el.pop('name')
-                self.elements[name] = element_lookup[type](**el)
-        for link in links:
-            flip = False
-            node0 = self.nodes[link.pop('node-1')]
-            ht0 = link.pop('ht-1')
-            node1 = self.nodes[link.pop('node-2')]
-            ht1 = link.pop('ht-2')
-            if not node0.variable:
-                if node1.variable:
-                    flip = True
-            element = self.elements[link.pop('element')]
-            if flip:
-                self.links.append(link_object(node0=node1, ht0=ht1, node1=node0, ht1=ht0,
-                                              element=element, **link, flipped=flip))
+        link_names = set()
+        title_seen = False
+        for input_record in network_input:
+            record = dict(input_record)
+            try:
+                input_type = record.pop('input_type')
+            except KeyError as error:
+                raise BadNetwork('Network input record has no input_type') from error
+
+            if input_type == InputType.TITLE:
+                if title_seen:
+                    raise BadNetwork('Network input contains more than one title')
+                title_seen = True
+                self.title = record.get('title', '')
+            elif input_type == InputType.NODE:
+                try:
+                    name = record['name']
+                except KeyError as error:
+                    raise BadNetwork('Node record has no name') from error
+                if name in self.nodes:
+                    raise DuplicateNetworkName(f'Node "{name}" is defined more than once')
+                node_type = record.pop('type', 'c')
+                if node_type == 'a':
+                    raise UnsupportedNetworkFeature(
+                        f'Node "{name}" uses unsupported ambient-node behavior'
+                    )
+                if node_type not in {'c', 'v'}:
+                    raise BadNetwork(f'Node "{name}" has invalid type "{node_type}"')
+                try:
+                    self.nodes[name] = node_object(
+                        variable=node_type == 'v', **record
+                    )
+                except (TypeError, ValueError) as error:
+                    raise BadNetwork(f'Node "{name}" has invalid data: {error}') from error
+            elif input_type == InputType.LINK:
+                try:
+                    name = record['name']
+                except KeyError as error:
+                    raise BadNetwork('Link record has no name') from error
+                if name in link_names:
+                    raise DuplicateNetworkName(f'Link "{name}" is defined more than once')
+                link_names.add(name)
+                links.append(record)
+            elif input_type == InputType.ELEMENT:
+                try:
+                    element_type = record.pop('type')
+                    name = record.pop('name')
+                except KeyError as error:
+                    raise BadNetwork(
+                        f'Element record has no {error.args[0]}'
+                    ) from error
+                if name in self.elements:
+                    raise DuplicateNetworkName(
+                        f'Element "{name}" is defined more than once'
+                    )
+                if element_type not in element_lookup:
+                    raise UnsupportedNetworkFeature(
+                        f'Element "{name}" has unsupported type "{element_type}"'
+                    )
+                if (
+                    element_lookup is object_lookup
+                    and element_type not in self.supported_element_types
+                ):
+                    raise UnsupportedNetworkFeature(
+                        f'Element "{name}" uses unsupported solver element '
+                        f'type "{element_type}"'
+                    )
+                try:
+                    element = element_lookup[element_type](**record)
+                except (TypeError, ValueError, ZeroDivisionError) as error:
+                    raise BadNetwork(
+                        f'Element "{name}" has invalid data: {error}'
+                    ) from error
+                missing_methods = [
+                    method
+                    for method in ('linearize', 'flow', 'jacobian')
+                    if not callable(getattr(element, method, None))
+                ]
+                if missing_methods:
+                    raise UnsupportedNetworkFeature(
+                        f'Element "{name}" does not implement '
+                        f'{", ".join(missing_methods)}'
+                    )
+                self.elements[name] = element
             else:
-                self.links.append(link_object(node0=node0, ht0=ht0, node1=node1, ht1=ht1,
-                                              element=element, **link, flipped=flip))
+                raise UnsupportedNetworkFeature(
+                    f'Unsupported network input type: {input_type!r}'
+                )
+
+        adjacency = {name: set() for name in self.nodes}
+        for link in links:
+            name = link['name']
+            wind = link.get('wind')
+            wpmod = link.get('wpmod', 0.0)
+            if wind not in (None, 'null') or wpmod != 0.0:
+                raise UnsupportedNetworkFeature(
+                    f'Link "{name}" uses unsupported wind-pressure behavior'
+                )
+            if link.get('mult', 1.0) != 1.0:
+                raise UnsupportedNetworkFeature(
+                    f'Link "{name}" uses an unsupported multiplier'
+                )
+            if 'control' in link or 'ctrl' in link:
+                raise UnsupportedNetworkFeature(
+                    f'Link "{name}" uses unsupported control behavior'
+                )
+
+            try:
+                node0_name = link.pop('node-1')
+                node1_name = link.pop('node-2')
+                element_name = link.pop('element')
+                ht0 = link.pop('ht-1')
+                ht1 = link.pop('ht-2')
+            except KeyError as error:
+                raise BadNetwork(
+                    f'Link "{name}" has no {error.args[0]}'
+                ) from error
+            if node0_name not in self.nodes:
+                raise MissingNetworkReference(
+                    f'Link "{name}" references undefined node "{node0_name}"'
+                )
+            if node1_name not in self.nodes:
+                raise MissingNetworkReference(
+                    f'Link "{name}" references undefined node "{node1_name}"'
+                )
+            if element_name not in self.elements:
+                raise MissingNetworkReference(
+                    f'Link "{name}" references undefined element "{element_name}"'
+                )
+            if node0_name == node1_name:
+                raise BadNetwork(f'Link "{name}" connects node "{node0_name}" to itself')
+
+            node0 = self.nodes[node0_name]
+            node1 = self.nodes[node1_name]
+            element = self.elements[element_name]
+            adjacency[node0_name].add(node1_name)
+            adjacency[node1_name].add(node0_name)
+            flip = not node0.variable and node1.variable
+            if wind == 'null':
+                link['wind'] = None
+            if flip:
+                link_node0, link_ht0 = node1, ht1
+                link_node1, link_ht1 = node0, ht0
+            else:
+                link_node0, link_ht0 = node0, ht0
+                link_node1, link_ht1 = node1, ht1
+            try:
+                self.links.append(
+                    link_object(
+                        node0=link_node0,
+                        ht0=link_ht0,
+                        node1=link_node1,
+                        ht1=link_ht1,
+                        element=element,
+                        **link,
+                        flipped=flip,
+                    )
+                )
+            except (TypeError, ValueError) as error:
+                raise BadNetwork(f'Link "{name}" has invalid data: {error}') from error
+
+        disconnected = sorted(name for name, neighbors in adjacency.items() if not neighbors)
+        if disconnected:
+            raise BadNetwork(f'Disconnected nodes found: {", ".join(disconnected)}')
+
+        visited = set()
+        for start in self.nodes:
+            if start in visited:
+                continue
+            pending = [start]
+            component = []
+            while pending:
+                name = pending.pop()
+                if name in visited:
+                    continue
+                visited.add(name)
+                component.append(name)
+                pending.extend(adjacency[name] - visited)
+            if not any(not self.nodes[name].variable for name in component):
+                raise BadNetwork(
+                    'Variable-pressure component has no fixed-pressure node: '
+                    + ', '.join(sorted(component))
+                )
+
         # Figure out the size of the matrix
         self.variable_nodes = []
         count = 0
@@ -161,17 +333,6 @@ class Model:
 
         self.set_properties(self.nodes.values(), global_temperature=global_temperature,
                             global_density=global_density)
-
-        # Check for disconnected nodes
-        problems = []
-        for i,el in enumerate(self.A.diagonal()):
-            if el < 1:
-                for node in self.nodes.values():
-                    if node.index == i:
-                        problems.append(node)
-                        break
-        if problems:
-           raise BadNetwork('Disconnected nodes found: %s' % ', '.join([el.name for el in problems]))
 
     def summary(self):
         """Summarize the pressure network in the model.
