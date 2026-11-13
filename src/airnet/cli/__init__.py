@@ -1,40 +1,50 @@
 # SPDX-FileCopyrightText: 2024-present Oak Ridge National Laboratory, managed by UT-Battelle, Alliance for Energy Innovation, LLC, and contributors
 #
 # SPDX-License-Identifier: BSD-3-Clause
+from pathlib import Path
+
 import click
-import os
+
 import airnet
+from airnet.__about__ import __version__
 
 
 @click.command()
-@click.argument('input',metavar='INPUT_FILE', type=click.Path(exists=True))
+@click.argument(
+    'input_file',
+    metavar='INPUT_FILE',
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
 @click.option('-v', '--verbose', is_flag=True, show_default=True, default=False, help='Operate verbosely.')
-def simulate(input, verbose):
-    airnet.run_simulate(input, verbose=verbose)
+def simulate(input_file, verbose):
+    """Simulate the airflow network in INPUT_FILE."""
+    airnet.run_simulate(input_file, verbose=verbose)
 
 
 @click.command()
-@click.argument('input',metavar='INPUT_FILE', type=click.Path(exists=True))
+@click.argument(
+    'input_file',
+    metavar='INPUT_FILE',
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
 @click.option('-v', '--verbose', is_flag=True, show_default=True, default=False, help='Operate verbosely.')
-def summarize(input, verbose):
+def summarize(input_file, verbose):
+    """Summarize the airflow network in INPUT_FILE."""
     if verbose:
-        print('Opening input file "%s"...' % input)
+        click.echo(f'Opening input file "{input_file}"...')
 
-    fp = open(input, 'r')
-    reader = airnet.Reader(fp)
+    with input_file.open(encoding='utf-8') as input_stream:
+        reader = airnet.Reader(input_stream)
+        if verbose:
+            click.echo(f'Reading input file "{input_file}"...')
+        items = list(reader)
     if verbose:
-        print('Reading input file "%s"...' % input)
-    items = []
-    for item in reader:
-        items.append(item)
-    if verbose:
-        print('Closing input file "%s".' % input)
-    fp.close()
+        click.echo(f'Closing input file "{input_file}".')
 
     if reader.title:
-        print('Title:', reader.title)
+        click.echo(f'Title: {reader.title}')
 
-    print('\nElements:\n=========')
+    click.echo('\nElements:\n=========')
     elements = {}
     nodes = 0
     links = 0
@@ -49,18 +59,19 @@ def summarize(input, verbose):
         elif el['input_type'] == airnet.InputType.LINK:
             links += 1
     for key, value in elements.items():
-        print(key, value)
+        click.echo(f'{key} {value}')
 
-    print('\nNodes: %s\n\nLinks: %s' % (nodes, links))
+    click.echo(f'\nNodes: {nodes}\n\nLinks: {links}')
 
     if verbose:
-        print('Done.')
+        click.echo('Done.')
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']}, invoke_without_command=False)
 @click.version_option(version=__version__, prog_name='airnet')
-@click.pass_context
-def airnetx(ctx: click.Context):
-    pass
+def main():
+    """Inspect and simulate AIRNET airflow-network input files."""
 
-airnetx.add_command(summarize)
+
+main.add_command(summarize)
+main.add_command(simulate)

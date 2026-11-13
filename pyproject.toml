@@ -29,11 +29,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.scripts]
-summarize_airnet_input = "airnet.model:summarize_input"
-airnetsim = "airnet.model:simulate"
-
-[project.gui-scripts]
-airnet_simulator = "airnet.model:gui_simulate"
+airnet = "airnet.cli:main"
 
 [project.urls]
 Documentation = "https://github.com/building-physics/airnet-python#readme"
