@@ -82,7 +82,7 @@ class Model:
     """A class containing nodes, links, and other data representing a pressure network.
     """
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
-                 link_object=Link, global_temperature:float=None, global_density:float=None):
+                 link_object=Link, global_temperature:float|None=None, global_density:float|None=None):
         self.title = ''
         self.nodes = {}
         self.links = []

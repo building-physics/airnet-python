@@ -17,7 +17,7 @@ from airnet.__about__ import __version__
 )
 @click.option('-v', '--verbose', is_flag=True, show_default=True, default=False, help='Operate verbosely.')
 def simulate(input_file, verbose):
-    """Simulate the airflow network in INPUT_FILE."""
+    """Simulate the pressure network in the specified input file."""
     airnet.run_simulate(input_file, verbose=verbose)
 
 
@@ -29,7 +29,7 @@ def simulate(input_file, verbose):
 )
 @click.option('-v', '--verbose', is_flag=True, show_default=True, default=False, help='Operate verbosely.')
 def summarize(input_file, verbose):
-    """Summarize the airflow network in INPUT_FILE."""
+    """Summarize the pressure network in the specified input file."""
     if verbose:
         click.echo(f'Opening input file "{input_file}"...')
 
@@ -70,7 +70,7 @@ def summarize(input_file, verbose):
 @click.group(context_settings={'help_option_names': ['-h', '--help']}, invoke_without_command=False)
 @click.version_option(version=__version__, prog_name='airnet')
 def main():
-    """Inspect and simulate AIRNET airflow-network input files."""
+    """Solve AIRNET pressure networks."""
 
 
 main.add_command(summarize)
