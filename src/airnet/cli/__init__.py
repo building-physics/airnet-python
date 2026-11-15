@@ -18,7 +18,10 @@ from airnet.__about__ import __version__
 @click.option('-v', '--verbose', is_flag=True, show_default=True, default=False, help='Operate verbosely.')
 def simulate(input_file, verbose):
     """Simulate the pressure network in the specified input file."""
-    airnet.run_simulate(input_file, verbose=verbose)
+    try:
+        airnet.run_simulate(input_file, verbose=verbose)
+    except (airnet.BadNetworkInput, airnet.BadNetwork, airnet.SolverError) as error:
+        raise click.ClickException(str(error)) from error
 
 
 @click.command()

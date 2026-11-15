@@ -163,14 +163,14 @@ class Reader:
         #         dtmin ht wd cd
         data = input_string.split()
         if len(data) < 4:
-            raise BadNetworkInput('Element type "dor" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+            raise BadNetworkInput(f'Element type "dor" at line {self.line_number} has only {len(data)+3} fields and cannot be a legal element')
         obj = {'input_type': InputType.ELEMENT, 'type': 'dor', 'name': name,
                'init': self.handle_float('dor', 'init', data[0]), 'lam': self.handle_float('dor', 'lam', data[1]),
                'turb': self.handle_float('dor', 'turb', data[2]), 'expt': self.handle_float('dor', 'expt', data[3])}
         try:
             next_line = self.get_next()
         except StopIteration:
-            raise BadNetworkInput('Element type "dor" at line %d has only one line and cannot be a legal element' % self.line_number)
+            raise BadNetworkInput(f'Element type "dor" at line {self.line_number} has only one line and cannot be a legal element')
         data = next_line.split()
         if len(data) < 4:
             raise BadNetworkInput('Element type "dor" with second line at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
@@ -184,7 +184,7 @@ class Reader:
         # element name cfr flow
         string = input_string.partition(' ')[0].strip()
         if not string:
-            raise BadNetworkInput('Element type "cfr" at line %d has only 3 fields and cannot be a legal element' % self.line_number)
+            raise BadNetworkInput(f'Element type "cfr" at line {self.line_number} has only 3 fields and cannot be a legal element')
         return {'input_type': InputType.ELEMENT, 'type': 'cfr', 'name': name,
                 'flow': self.handle_float('cfd', 'flow', string)}
     

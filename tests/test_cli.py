@@ -5,9 +5,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
+import airnet
 from airnet.__about__ import __version__
 from airnet.cli import main, simulate, summarize
-
 
 TEST_DIRECTORY = Path(__file__).parent
 
@@ -70,3 +70,18 @@ def test_simulate_calls_package_api(monkeypatch):
 
     assert result.exit_code == 0
     assert calls == [(input_file, True)]
+
+
+def test_simulate_reports_solver_failure_as_cli_error(monkeypatch):
+    input_file = TEST_DIRECTORY / 'AFDATA.FNX'
+
+    def fail_simulation(path, verbose=False):
+        raise airnet.InitializationError(info=4, max_iterations=100)
+
+    monkeypatch.setattr('airnet.run_simulate', fail_simulation)
+
+    result = CliRunner().invoke(simulate, [str(input_file)])
+
+    assert result.exit_code == 1
+    assert 'Error: Initialization linear solve' in result.output
+    assert 'solver info=4' in result.output

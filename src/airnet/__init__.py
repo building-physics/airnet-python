@@ -4,8 +4,13 @@
 from .model import (
     BadNetwork,
     DuplicateNetworkName,
+    InitializationError,
+    LinearSolverError,
     MissingNetworkReference,
     Model,
+    NonlinearSolverError,
+    NumericalSolverError,
+    SolverError,
     UnsupportedNetworkFeature,
     run_simulate,
 )

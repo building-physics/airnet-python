@@ -9,7 +9,6 @@ import pytest
 
 import airnet
 
-
 FIXTURE_DIRECTORY = Path(__file__).parent / "airnet-c"
 
 
@@ -65,7 +64,7 @@ def test_airnet_c_single_shot(fixture_name):
     case, model = load_case(fixture_name)
     tolerances = case["tolerances"]
 
-    assert model.initialize(maxiter=case["run_control"]["maximum_iterations"])
+    model.initialize(maxiter=case["run_control"]["maximum_iterations"])
     iterations = model.air_movement(
         maxiter=case["run_control"]["maximum_iterations"],
         tolerance=case["run_control"]["absolute_airflow_tolerance"],

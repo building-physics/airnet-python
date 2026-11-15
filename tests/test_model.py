@@ -65,7 +65,7 @@ def test_model_creation():
     model.set_properties(model.nodes.values(), global_temperature=node_1_temp, global_density=node_1_dens)
     model.nodes['node-4'].pressure = node_4_pressure
 
-    assert model.initialize(maxiter=10)
+    model.initialize(maxiter=10)
 
     # Compute the flow we should get (playing a bit loose with the state props involved)
     # f = C1(p1-p2) = C2(p2-p3) = C1(p3-p4) = Ce(p1-p4) = Ce((p1-p2) + (p2-p3) + (p3-p4))
@@ -120,17 +120,88 @@ def test_model_creation():
 def test_linear_initialization_uses_flow_direction_density():
     model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
 
-    assert model.initialize(maxiter=10)
+    model.initialize(maxiter=10)
     assert model.nodes['node-2'].pressure == pytest.approx(-100.0 / 3.0)
     assert model.nodes['node-3'].pressure == pytest.approx(-200.0 / 3.0)
 
 
 def test_air_movement_reports_nonconvergence():
     model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
-    assert model.initialize(maxiter=10)
+    model.initialize(maxiter=10)
 
-    with pytest.raises(RuntimeError, match='failed to converge'):
+    with pytest.raises(airnet.NonlinearSolverError, match='failed to converge') as error:
         model.air_movement(maxiter=1, tolerance=0.0)
+
+    assert error.value.max_iterations == 1
+    assert error.value.maximum_absolute_residual == 0.0
+    assert error.value.relative_residual == 0.0
+    assert error.value.absolute_tolerance == 0.0
+
+
+def test_initialization_reports_linear_solver_failure(monkeypatch):
+    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+
+    def fail_linear_solve(matrix, right_hand_side, **kwargs):
+        return right_hand_side, 7
+
+    monkeypatch.setattr('airnet.model.scipy.sparse.linalg.cg', fail_linear_solve)
+
+    with pytest.raises(airnet.InitializationError, match='did not converge') as error:
+        model.initialize(maxiter=5)
+
+    assert error.value.info == 7
+    assert error.value.phase == 'initialization'
+    assert error.value.max_iterations == 5
+
+
+def test_air_movement_reports_linear_correction_failure(monkeypatch):
+    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    model.initialize(maxiter=10)
+    model.nodes['node-2'].pressure += 1.0
+
+    def fail_linear_solve(matrix, right_hand_side, **kwargs):
+        return right_hand_side, -1
+
+    monkeypatch.setattr('airnet.model.scipy.sparse.linalg.cg', fail_linear_solve)
+
+    with pytest.raises(airnet.LinearSolverError, match='solver info=-1') as error:
+        model.air_movement(maxiter=10)
+
+    assert error.value.info == -1
+    assert error.value.phase == 'nonlinear correction'
+    assert error.value.nonlinear_iteration == 1
+
+
+def test_air_movement_rejects_non_finite_element_results(monkeypatch):
+    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    model.initialize(maxiter=10)
+
+    monkeypatch.setattr(
+        model.links[0].element,
+        'jacobian',
+        lambda link, pdrop: (1, float('nan'), 0.0, 1.0, 0.0),
+    )
+
+    with pytest.raises(airnet.NumericalSolverError, match='link "link-1"'):
+        model.air_movement(maxiter=10)
+
+
+def test_run_simulate_does_not_write_results_after_initialization_failure(
+    monkeypatch, tmp_path
+):
+    input_file = tmp_path / 'network.txt'
+    input_file.write_text(AFDATA_PL2, encoding='utf-8')
+    monkeypatch.chdir(tmp_path)
+
+    def fail_initialization(self, maxiter=100):
+        raise airnet.InitializationError(info=3, max_iterations=maxiter)
+
+    monkeypatch.setattr(airnet.Model, 'initialize', fail_initialization)
+
+    with pytest.raises(airnet.InitializationError):
+        airnet.run_simulate(input_file)
+
+    assert not (tmp_path / 'airnetsim.csv').exists()
 
 
 class TwoWayElement:
@@ -190,7 +261,7 @@ def test_air_movement_assembles_two_way_flow_and_jacobian_components():
     model = airnet.Model(
         two_way_network(), element_lookup={'two': TwoWayElement}
     )
-    assert model.initialize(maxiter=10)
+    model.initialize(maxiter=10)
 
     iterations = model.air_movement(maxiter=10, minimum_iterations=2)
 

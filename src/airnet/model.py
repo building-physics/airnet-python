@@ -93,6 +93,63 @@ class UnsupportedNetworkFeature(BadNetwork):
     """Raised when input requests behavior that is not implemented."""
 
 
+class SolverError(RuntimeError):
+    """Base class for explicit airflow-solver failures."""
+
+
+class LinearSolverError(SolverError):
+    """Raised when a linear solve fails or does not converge."""
+
+    def __init__(self, message, *, info, phase, nonlinear_iteration=None):
+        super().__init__(message)
+        self.info = info
+        self.phase = phase
+        self.nonlinear_iteration = nonlinear_iteration
+
+
+class InitializationError(LinearSolverError):
+    """Raised when the linear initialization solve fails."""
+
+    def __init__(self, *, info, max_iterations):
+        if info > 0:
+            detail = f'did not converge within {max_iterations} iterations'
+        else:
+            detail = 'failed'
+        super().__init__(
+            f'Initialization linear solve {detail} (solver info={info})',
+            info=info,
+            phase='initialization',
+        )
+        self.max_iterations = max_iterations
+
+
+class NonlinearSolverError(SolverError):
+    """Raised when the nonlinear airflow solve does not converge."""
+
+    def __init__(
+        self,
+        *,
+        max_iterations,
+        maximum_absolute_residual,
+        relative_residual,
+        absolute_tolerance,
+        relative_tolerance,
+    ):
+        super().__init__(
+            f'Airflow solve failed to converge within {max_iterations} iterations '
+            f'(maximum absolute residual={maximum_absolute_residual:.9e})'
+        )
+        self.max_iterations = max_iterations
+        self.maximum_absolute_residual = maximum_absolute_residual
+        self.relative_residual = relative_residual
+        self.absolute_tolerance = absolute_tolerance
+        self.relative_tolerance = relative_tolerance
+
+
+class NumericalSolverError(SolverError):
+    """Raised when an element or solver produces a non-finite value."""
+
+
 class Model:
     """A class containing nodes, links, and other data representing a pressure network.
     """
@@ -432,17 +489,28 @@ class Model:
         maxiter: optional
             The maximum number of iterations allowed in the solution.
             
-        Returns
-        -------
-        bool:
-            True is returned if the initialization has converged in the allowed number of iterations, False otherwise.
+        Raises
+        ------
+        InitializationError
+            If the linear initialization solve fails or does not converge.
+        NumericalSolverError
+            If initialization produces a non-finite coefficient, solution,
+            or flow.
         """
+        if maxiter < 1:
+            raise ValueError('Maximum initialization iterations must be at least 1')
+
         self.A.data.fill(0.0)
         self.x.fill(0.0)
         for link in self.links:
             if link.node0.variable:
                 pdrop = link.node0.pressure - link.node1.pressure
                 c = link.element.linearize(link, pdrop=pdrop)
+                if not math.isfinite(c):
+                    raise NumericalSolverError(
+                        f'Element on link "{link.name}" produced a non-finite '
+                        'initialization coefficient'
+                    )
                 # diagonal term
                 self.A[link.node0.index, link.node0.index] += c
                 if link.node1.variable:
@@ -453,22 +521,33 @@ class Model:
                     self.A[link.node1.index, link.node0.index] -= c
                 else:
                     self.x[link.node0.index] += c*link.node1.pressure
-        self.x, info = scipy.sparse.linalg.cg(
+        solution, info = scipy.sparse.linalg.cg(
             self.A, self.x, rtol=1.0e-12, atol=0.0, maxiter=maxiter
         )
-        if info == 0:
-            # Update the nodal pressures
-            for node in self.variable_nodes:
-                node.pressure = self.x[node.index]
-            # Update the flows:
-            for link in self.links:
-                pdrop = link.node0.pressure - link.node1.pressure
-                c = link.element.linearize(link, pdrop=pdrop)
-                link.flow_count = 1
-                link.flow0 = c*(link.node0.pressure-link.node1.pressure)
-                link.flow1 = 0.0
-            return True
-        return False
+        if info != 0:
+            raise InitializationError(info=info, max_iterations=maxiter)
+        if not bool(numpy.all(numpy.isfinite(solution))):
+            raise NumericalSolverError(
+                'Initialization linear solve produced a non-finite pressure'
+            )
+
+        self.x = solution
+        # Update the nodal pressures
+        for node in self.variable_nodes:
+            node.pressure = self.x[node.index]
+        # Update the flows
+        for link in self.links:
+            pdrop = link.node0.pressure - link.node1.pressure
+            c = link.element.linearize(link, pdrop=pdrop)
+            flow = c * (link.node0.pressure - link.node1.pressure)
+            if not math.isfinite(c) or not math.isfinite(flow):
+                raise NumericalSolverError(
+                    f'Element on link "{link.name}" produced a non-finite '
+                    'initialization flow'
+                )
+            link.flow_count = 1
+            link.flow0 = flow
+            link.flow1 = 0.0
     
     def compute_pressure_drops(self):
         """Compute the pressure drop across all the links in the model."""
@@ -520,10 +599,18 @@ class Model:
 
         Raises
         ------
-        RuntimeError
-            If either a linear correction fails or the nonlinear iteration
-            does not converge within ``maxiter`` iterations.
+        LinearSolverError
+            If a linear correction fails or does not converge.
+        NonlinearSolverError
+            If the airflow iteration does not converge within ``maxiter``
+            iterations.
+        NumericalSolverError
+            If an element or linear solve produces a non-finite value.
         """
+        if maxiter < 1:
+            raise ValueError('Maximum nonlinear iterations must be at least 1')
+        if max_subiter < 1:
+            raise ValueError('Maximum linear iterations must be at least 1')
         if tolerance < 0.0:
             raise ValueError('Absolute convergence tolerance cannot be negative')
         if relative_tolerance is not None and relative_tolerance < 0.0:
@@ -544,6 +631,14 @@ class Model:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                 if link.node0.variable:
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
+                    if not all(
+                        math.isfinite(value)
+                        for value in (link.flow0, link.flow1, df0, df1)
+                    ):
+                        raise NumericalSolverError(
+                            f'Element on link "{link.name}" produced a non-finite '
+                            f'flow or derivative at nonlinear iteration {iter}'
+                        )
                     link.flow_count = nf
                     flow = link.flow0 + link.flow1
                     derivative = df0 + df1
@@ -560,9 +655,21 @@ class Model:
                         self.A[link.node1.index, link.node0.index] -= derivative
                 else:
                     nf, link.flow0, link.flow1 = link.element.flow(link, pdrop)
+                    if not all(
+                        math.isfinite(value)
+                        for value in (link.flow0, link.flow1)
+                    ):
+                        raise NumericalSolverError(
+                            f'Element on link "{link.name}" produced a non-finite '
+                            f'flow at nonlinear iteration {iter}'
+                        )
                     link.flow_count = nf
 
             residual = numpy.asarray(self.x).reshape(-1)
+            if not bool(numpy.all(numpy.isfinite(residual))):
+                raise NumericalSolverError(
+                    f'Non-finite residual at nonlinear iteration {iter}'
+                )
             absolute_residual = numpy.abs(residual)
             maxf = float(absolute_residual.max(initial=0.0))
             converged = absolute_residual < tolerance
@@ -593,18 +700,36 @@ class Model:
             correction, info = scipy.sparse.linalg.cg(
                 self.A, residual, rtol=1.0e-12, atol=0.0, maxiter=max_subiter
             )
-            if info == 0:
-                correction_factor = 1.0
-                if relative_residual > 0.30 * previous_relative_residual:
-                    correction_factor = relaxation
-                previous_relative_residual = relative_residual
+            if info != 0:
+                raise LinearSolverError(
+                    f'Linear correction solve failed at nonlinear iteration {iter} '
+                    f'(solver info={info})',
+                    info=info,
+                    phase='nonlinear correction',
+                    nonlinear_iteration=iter,
+                )
+            if not bool(numpy.all(numpy.isfinite(correction))):
+                raise NumericalSolverError(
+                    f'Linear correction solve produced a non-finite value at '
+                    f'nonlinear iteration {iter}'
+                )
 
-                # Update the nodal pressures; flows are set above.
-                for node in self.variable_nodes:
-                    node.pressure -= correction_factor * correction[node.index]
-            else:
-                raise RuntimeError('Newton iteration solve failed at %d iterations' % iter)
-        raise RuntimeError('Airflow solve failed to converge in %d iterations' % maxiter)
+            correction_factor = 1.0
+            if relative_residual > 0.30 * previous_relative_residual:
+                correction_factor = relaxation
+            previous_relative_residual = relative_residual
+
+            # Update the nodal pressures; flows are set above.
+            for node in self.variable_nodes:
+                node.pressure -= correction_factor * correction[node.index]
+
+        raise NonlinearSolverError(
+            max_iterations=maxiter,
+            maximum_absolute_residual=maxf,
+            relative_residual=relative_residual,
+            absolute_tolerance=tolerance,
+            relative_tolerance=relative_tolerance,
+        )
 
 def write_results_csv(nodes, links, csv_file_name: str)   :
     fp = open(csv_file_name, 'w')
