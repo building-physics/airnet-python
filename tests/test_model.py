@@ -394,7 +394,48 @@ def test_model_rejects_variable_component_without_fixed_pressure_node():
 
     with pytest.raises(
         airnet.BadNetwork,
-        match='Variable-pressure component has no fixed-pressure node',
+        match='Variable-pressure component has no linear-initialization path',
+    ):
+        airnet.Model(records)
+
+
+def test_constant_flow_does_not_anchor_variable_pressure_component():
+    records = valid_network_records()
+    element = record_named(records, 'opening')
+    element.clear()
+    element.update(
+        {
+            'input_type': airnet.InputType.ELEMENT,
+            'name': 'opening',
+            'type': 'cfr',
+            'flow': 1.0,
+        }
+    )
+
+    with pytest.raises(
+        airnet.BadNetwork,
+        match='no linear-initialization path to a fixed-pressure node',
+    ):
+        airnet.Model(records)
+
+
+def test_check_valve_does_not_anchor_linear_initialization():
+    records = valid_network_records()
+    element = record_named(records, 'opening')
+    element.clear()
+    element.update(
+        {
+            'input_type': airnet.InputType.ELEMENT,
+            'name': 'opening',
+            'type': 'ckv',
+            'dp0': 0.0,
+            'coef': 10.0,
+        }
+    )
+
+    with pytest.raises(
+        airnet.BadNetwork,
+        match='no linear-initialization path to a fixed-pressure node',
     ):
         airnet.Model(records)
 
@@ -407,15 +448,21 @@ def test_model_rejects_unsupported_solver_element():
         {
             'input_type': airnet.InputType.ELEMENT,
             'name': 'opening',
-            'type': 'qfr',
-            'a': 1.0,
-            'b': 1.0,
+            'type': 'fan',
+            'init': 1.0,
+            'lam': 1.0,
+            'turb': 1.0,
+            'expt': 0.5,
+            'rdens': 1.2,
+            'fdf': 1.0,
+            'sop': 1.0,
+            'off': 0.0,
         }
     )
 
     with pytest.raises(
         airnet.UnsupportedNetworkFeature,
-        match='unsupported solver element type "qfr"',
+        match='unsupported solver element type "fan"',
     ):
         airnet.Model(records)
 

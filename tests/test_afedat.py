@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from airnet.afedat import Afe_Dor, Afe_Dwc, Afe_Plr
+from airnet.afedat import Afe_Cfr, Afe_Ckv, Afe_Dor, Afe_Dwc, Afe_Plr, Afe_Qfr
 
 
 def make_node(density, viscosity, temperature=293.15):
@@ -120,6 +120,96 @@ def test_dwc_turbulent_flow_matches_dw1_parallel_duct():
 
     assert flow == pytest.approx(0.2448779, rel=1.0e-6)
     assert derivative == pytest.approx(0.5 * flow / 9.0)
+
+
+@pytest.mark.parametrize('pressure', [-10.0, 0.0, 10.0])
+def test_qfr_flow_satisfies_quadratic_relation(pressure):
+    element = Afe_Qfr(a=0.31, b=44.8)
+    link = SimpleNamespace()
+
+    count, flow, flow1, derivative, derivative1 = element.jacobian(
+        link, pressure
+    )
+
+    reconstructed_pressure = element.a * flow
+    reconstructed_pressure += element.b * flow * abs(flow)
+    assert count == 1
+    assert flow1 == 0.0
+    assert derivative1 == 0.0
+    assert reconstructed_pressure == pytest.approx(pressure)
+    assert derivative == pytest.approx(
+        1.0 / (element.a + 2.0 * element.b * abs(flow))
+    )
+    assert element.flow(link, pressure) == pytest.approx(
+        (count, flow, flow1)
+    )
+
+
+@pytest.mark.parametrize('pressure', [-10.0, -1.0e-8, 0.0, 1.0e-8, 10.0])
+def test_qfr_jacobian_matches_finite_difference(pressure):
+    element = Afe_Qfr(a=0.31, b=44.8)
+    link = SimpleNamespace()
+    step = 1.0e-10 if abs(pressure) < 1.0e-7 else 1.0e-6
+
+    _, _, _, derivative, _ = element.jacobian(link, pressure)
+    _, upper, _ = element.flow(link, pressure + step)
+    _, lower, _ = element.flow(link, pressure - step)
+
+    assert derivative == pytest.approx(
+        (upper - lower) / (2.0 * step), rel=1.0e-6
+    )
+
+
+def test_cfr_flow_is_pressure_independent_and_orientation_aware():
+    element = Afe_Cfr(flow=1.25)
+    forward = SimpleNamespace(flipped=False)
+    reverse = SimpleNamespace(flipped=True)
+
+    assert element.linearize(forward, 100.0) == 0.0
+    assert element.initialization_flow(forward, 0.0) == -1.25
+    assert element.jacobian(forward, -100.0) == (1, 1.25, 0.0, 0.0, 0.0)
+    assert element.jacobian(reverse, 100.0) == (1, -1.25, 0.0, 0.0, 0.0)
+
+
+@pytest.mark.parametrize('pressure', [-1.0, 0.0, 0.5])
+def test_ckv_is_closed_at_and_below_cutoff(pressure):
+    element = Afe_Ckv(dp0=0.5, coef=10.0)
+    link = SimpleNamespace(flipped=False)
+
+    assert element.jacobian(link, pressure) == (1, 0.0, 0.0, 0.0, 0.0)
+
+
+def test_ckv_open_flow_and_jacobian_match_finite_difference():
+    element = Afe_Ckv(dp0=0.5, coef=10.0)
+    link = SimpleNamespace(flipped=False)
+    pressure = 2.0
+    step = 1.0e-6
+
+    count, flow, flow1, derivative, derivative1 = element.jacobian(
+        link, pressure
+    )
+    _, upper, _ = element.flow(link, pressure + step)
+    _, lower, _ = element.flow(link, pressure - step)
+
+    assert count == 1
+    assert flow > 0.0
+    assert flow1 == 0.0
+    assert derivative1 == 0.0
+    assert derivative == pytest.approx(
+        (upper - lower) / (2.0 * step), rel=1.0e-6
+    )
+
+
+def test_ckv_preserves_input_direction_when_link_is_flipped():
+    element = Afe_Ckv(dp0=0.5, coef=10.0)
+    forward = SimpleNamespace(flipped=False)
+    reverse = SimpleNamespace(flipped=True)
+
+    forward_result = element.jacobian(forward, 2.0)
+    reverse_result = element.jacobian(reverse, -2.0)
+
+    assert reverse_result[1] == pytest.approx(-forward_result[1])
+    assert reverse_result[3] == pytest.approx(forward_result[3])
 
 
 def make_doorway():

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import math
 
+
 class Afe_Plr:
     """Power law flow element.
     
@@ -260,6 +261,8 @@ class Afe_Qfr:
         Second order coefficent in the quadratic flow relation.
     """
     def __init__(self, a:float=0.0, b:float=0.0):
+        if a <= 0.0 or b <= 0.0:
+            raise ValueError('Quadratic flow coefficients must be positive')
         self.a = a # pdrop = a*f + b*f*f
         self.b = b #
 
@@ -272,6 +275,41 @@ class Afe_Qfr:
             The three-character type of the flow element.
         """
         return 'qfr'
+
+    def linearize(self, link, pdrop:float, multiplier:float=1.0,
+                  control:float=1.0):
+        """Return AIRNET's zero-flow linearization coefficient."""
+        return 1.0 / self.a
+
+    def initialization_flow(self, link, pdrop:float,
+                            multiplier:float=1.0, control:float=1.0):
+        """Return AIRNET's historical QFR initialization residual flow.
+
+        Unlike the other passive elements, AIRNET applies the QFR
+        initialization coefficient with the same sign as the pressure drop.
+        Preserving that choice reproduces its nonlinear convergence path.
+        """
+        return self.linearize(link, pdrop, multiplier, control) * pdrop
+
+    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
+                 control:float=1.0):
+        """Compute quadratic-relation mass flow and its pressure derivative."""
+        pressure = abs(pdrop)
+        root = math.sqrt(self.a * self.a + 4.0 * self.b * pressure)
+        # This equivalent form avoids cancellation as pressure approaches zero.
+        flow = 2.0 * pressure / (self.a + root)
+        if pdrop < 0.0:
+            flow = -flow
+        derivative = 1.0 / (self.a + 2.0 * self.b * abs(flow))
+        return 1, flow, 0.0, derivative, 0.0
+
+    def flow(self, link, pdrop:float, multiplier:float=1.0,
+             control:float=1.0):
+        """Compute quadratic-relation mass flow without derivative terms."""
+        nf, flow0, flow1, _, _ = self.jacobian(
+            link, pdrop, multiplier, control
+        )
+        return nf, flow0, flow1
 
 class Afe_Dor(Afe_Plr):
     sqrt_two = 1.414214
@@ -387,8 +425,10 @@ class Afe_Dor(Afe_Plr):
         return nf, flow0, flow1
 
 class Afe_Cfr:
+    connects_initialization_pressures = False
+
     def __init__(self, flow:float=0.0):
-        self.flow = flow # flow rate (kg/s)
+        self.flow_rate = flow # rated flow rate (kg/s)
     
     def type(self):
         """Returns the flow element three-character type.
@@ -399,6 +439,38 @@ class Afe_Cfr:
             The three-character type of the flow element.
         """
         return 'cfr'
+
+    def _oriented_flow(self, link, control):
+        flow = self.flow_rate * control
+        return -flow if link.flipped else flow
+
+    def linearize(self, link, pdrop:float, multiplier:float=1.0,
+                  control:float=1.0):
+        """Return the zero pressure derivative of a constant-flow element."""
+        return 0.0
+
+    def initialization_flow(self, link, pdrop:float,
+                            multiplier:float=1.0, control:float=1.0):
+        """Return AIRNET's initialization residual-flow contribution."""
+        return -self._oriented_flow(link, control)
+
+    def initialization_source(self, link, pdrop:float,
+                              multiplier:float=1.0, control:float=1.0):
+        """Return the constant term in the physical linear flow relation."""
+        return self._oriented_flow(link, control)
+
+    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
+                 control:float=1.0):
+        """Return the pressure-independent flow and zero derivative."""
+        return 1, self._oriented_flow(link, control), 0.0, 0.0, 0.0
+
+    def flow(self, link, pdrop:float, multiplier:float=1.0,
+             control:float=1.0):
+        """Return the pressure-independent mass flow."""
+        nf, flow0, flow1, _, _ = self.jacobian(
+            link, pdrop, multiplier, control
+        )
+        return nf, flow0, flow1
 
 class Afe_Fan(Afe_Plr):
     def __init__(self, init:float=0.0, lam:float=0.0, turb:float=0.0, expt:float=0.5, rdens:float=0.0,
@@ -441,7 +513,11 @@ class Afe_Cpf:
         return 'cpf'
 
 class Afe_Ckv:
+    connects_initialization_pressures = False
+
     def __init__(self, dp0:float=0.0, coef:float=0.0):
+        if coef <= 0.0:
+            raise ValueError('Check-valve flow coefficient must be positive')
         self.dp0 = dp0 # cut-off pressure
         self.coef = coef # flow coefficient
 
@@ -454,6 +530,39 @@ class Afe_Ckv:
             The three-character type of the flow element.
         """
         return 'ckv'
+
+    def linearize(self, link, pdrop:float, multiplier:float=1.0,
+                  control:float=1.0):
+        """Return AIRNET's closed-valve initialization derivative."""
+        return 0.0
+
+    def initialization_flow(self, link, pdrop:float,
+                            multiplier:float=1.0, control:float=1.0):
+        """Return AIRNET's zero check-valve initialization flow."""
+        return 0.0
+
+    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
+                 control:float=1.0):
+        """Compute the positive-input-direction check-valve flow."""
+        input_pressure = -pdrop if link.flipped else pdrop
+        pressure_above_cutoff = input_pressure - self.dp0
+        if pressure_above_cutoff <= 0.0:
+            return 1, 0.0, 0.0, 0.0, 0.0
+
+        input_flow = math.pow(
+            self.coef * pressure_above_cutoff, 1.1
+        )
+        derivative = 1.1 * input_flow / pressure_above_cutoff
+        flow = -input_flow if link.flipped else input_flow
+        return 1, flow, 0.0, derivative, 0.0
+
+    def flow(self, link, pdrop:float, multiplier:float=1.0,
+             control:float=1.0):
+        """Compute check-valve flow without derivative terms."""
+        nf, flow0, flow1, _, _ = self.jacobian(
+            link, pdrop, multiplier, control
+        )
+        return nf, flow0, flow1
 
 class Afe_Prv:
     def __init__(self, fpos:float=0.0, cpos:float=0.0, fneg:float=0.0, cneg:float=0.0):

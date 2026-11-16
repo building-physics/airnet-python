@@ -153,7 +153,9 @@ class NumericalSolverError(SolverError):
 class Model:
     """A class containing nodes, links, and other data representing a pressure network.
     """
-    supported_element_types = frozenset({'plr', 'dwc', 'dor'})
+    supported_element_types = frozenset(
+        {'plr', 'dwc', 'qfr', 'dor', 'cfr', 'ckv'}
+    )
 
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
                  link_object=Link, global_temperature:float|None=None, global_density:float|None=None):
@@ -255,6 +257,7 @@ class Model:
                 )
 
         adjacency = {name: set() for name in self.nodes}
+        pressure_adjacency = {name: set() for name in self.nodes}
         for link in links:
             name = link['name']
             wind = link.get('wind')
@@ -302,6 +305,9 @@ class Model:
             element = self.elements[element_name]
             adjacency[node0_name].add(node1_name)
             adjacency[node1_name].add(node0_name)
+            if getattr(element, 'connects_initialization_pressures', True):
+                pressure_adjacency[node0_name].add(node1_name)
+                pressure_adjacency[node1_name].add(node0_name)
             flip = not node0.variable and node1.variable
             if wind == 'null':
                 link['wind'] = None
@@ -331,7 +337,9 @@ class Model:
             raise BadNetwork(f'Disconnected nodes found: {", ".join(disconnected)}')
 
         visited = set()
-        for start in self.nodes:
+        for start, start_node in self.nodes.items():
+            if not start_node.variable:
+                continue
             if start in visited:
                 continue
             pending = [start]
@@ -342,10 +350,11 @@ class Model:
                     continue
                 visited.add(name)
                 component.append(name)
-                pending.extend(adjacency[name] - visited)
+                pending.extend(pressure_adjacency[name] - visited)
             if not any(not self.nodes[name].variable for name in component):
                 raise BadNetwork(
-                    'Variable-pressure component has no fixed-pressure node: '
+                    'Variable-pressure component has no linear-initialization '
+                    'path to a fixed-pressure node: '
                     + ', '.join(sorted(component))
                 )
 
@@ -506,21 +515,29 @@ class Model:
             if link.node0.variable:
                 pdrop = link.node0.pressure - link.node1.pressure
                 c = link.element.linearize(link, pdrop=pdrop)
-                if not math.isfinite(c):
+                flow_function = getattr(
+                    link.element, 'initialization_flow', None
+                )
+                initialization_flow = (
+                    flow_function(link, pdrop=pdrop)
+                    if flow_function is not None
+                    else -c * pdrop
+                )
+                if not math.isfinite(c) or not math.isfinite(initialization_flow):
                     raise NumericalSolverError(
                         f'Element on link "{link.name}" produced a non-finite '
-                        'initialization coefficient'
+                        'initialization coefficient or residual flow'
                     )
+                self.x[link.node0.index] += initialization_flow
                 # diagonal term
                 self.A[link.node0.index, link.node0.index] += c
                 if link.node1.variable:
+                    self.x[link.node1.index] -= initialization_flow
                     # diagonal term
                     self.A[link.node1.index, link.node1.index] += c
                     # off diagonal terms
                     self.A[link.node0.index, link.node1.index] -= c
                     self.A[link.node1.index, link.node0.index] -= c
-                else:
-                    self.x[link.node0.index] += c*link.node1.pressure
         solution, info = scipy.sparse.linalg.cg(
             self.A, self.x, rtol=1.0e-12, atol=0.0, maxiter=maxiter
         )
@@ -539,7 +556,15 @@ class Model:
         for link in self.links:
             pdrop = link.node0.pressure - link.node1.pressure
             c = link.element.linearize(link, pdrop=pdrop)
-            flow = c * (link.node0.pressure - link.node1.pressure)
+            source_function = getattr(
+                link.element, 'initialization_source', None
+            )
+            source = (
+                source_function(link, pdrop=pdrop)
+                if source_function is not None
+                else 0.0
+            )
+            flow = c * pdrop + source
             if not math.isfinite(c) or not math.isfinite(flow):
                 raise NumericalSolverError(
                     f'Element on link "{link.name}" produced a non-finite '

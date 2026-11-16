@@ -58,6 +58,9 @@ def variable_node_mass_balance(model):
         "pl3-run-01.json",
         "dw1-run-01.json",
         "dr1-run-01.json",
+        "qf1-run-01.json",
+        "cf1-run-01.json",
+        "cv1-run-01.json",
     ],
 )
 def test_airnet_c_single_shot(fixture_name):
