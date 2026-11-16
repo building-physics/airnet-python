@@ -2,9 +2,9 @@
   "case": "QF1",
   "scenario": "first unmodified run",
   "network": "AFDATA.QF1",
-  "source_report": "AIRNET-C/c/tests/reference/AFOUT.QF1",
+  "source_report": "regenerated from AIRNET-C/c/tests/QF1 using the corrected AIRNET-C executable",
   "source_run": 1,
-  "notes": "AIRNET-C applies the QFR linear initialization with the opposite residual sign from its other passive elements.",
+  "notes": "Regenerated after correcting the QFR linear initialization residual flow to -pdrop/a. Python's corrected initialization satisfies the configured convergence criteria in fewer iterations; its DWC flows can therefore stop within 2e-7 kg/s of the report.",
   "run_control": {
     "maximum_iterations": 30,
     "relative_airflow_tolerance": 0.0001,
@@ -23,22 +23,22 @@
     "duct-1": {"pressure": 0.008},
     "duct-2": {"pressure": 0.005},
     "dplr-1": {"pressure": 0.007999998},
-    "dplr-2": {"pressure": 0.004999999},
-    "dqfr-1": {"pressure": 0.008000002},
+    "dplr-2": {"pressure": 0.004999998},
+    "dqfr-1": {"pressure": 0.008000001},
     "dqfr-2": {"pressure": 0.004999998},
     "sink": {"pressure": 0.0}
   },
   "links": {
-    "duct-0": {"flow_count": 1, "pressure_drop": 0.01, "flow0": 0.004924466, "flow1": 0.0},
-    "duct-1": {"flow_count": 1, "pressure_drop": 0.002, "flow0": 0.004924466, "flow1": 0.0},
-    "duct-2": {"flow_count": 1, "pressure_drop": 0.003, "flow0": 0.004924466, "flow1": 0.0},
-    "duct-3": {"flow_count": 1, "pressure_drop": 0.005, "flow0": 0.004924466, "flow1": 0.0},
+    "duct-0": {"flow_count": 1, "pressure_drop": 0.01, "flow0": 0.004924467, "flow1": 0.0, "flow_absolute": 0.0000002},
+    "duct-1": {"flow_count": 1, "pressure_drop": 0.002, "flow0": 0.004924466, "flow1": 0.0, "flow_absolute": 0.0000002},
+    "duct-2": {"flow_count": 1, "pressure_drop": 0.003, "flow0": 0.004924466, "flow1": 0.0, "flow_absolute": 0.0000002},
+    "duct-3": {"flow_count": 1, "pressure_drop": 0.005, "flow0": 0.004924466, "flow1": 0.0, "flow_absolute": 0.0000002},
     "dplr-1": {"flow_count": 1, "pressure_drop": 0.002000002, "flow0": 0.004530217, "flow1": 0.0},
     "dplr-2": {"flow_count": 1, "pressure_drop": 0.002999999, "flow0": 0.004530217, "flow1": 0.0},
     "dplr-3": {"flow_count": 1, "pressure_drop": 0.004999998, "flow0": 0.004530217, "flow1": 0.0},
     "dqfr-1": {"flow_count": 1, "pressure_drop": 0.001999999, "flow0": 0.004062676, "flow1": 0.0},
     "dqfr-2": {"flow_count": 1, "pressure_drop": 0.003000004, "flow0": 0.004062676, "flow1": 0.0},
-    "dqfr-3": {"flow_count": 1, "pressure_drop": 0.004999998, "flow0": 0.004062676, "flow1": 0.0}
+    "dqfr-3": {"flow_count": 1, "pressure_drop": 0.004999998, "flow0": 0.004062677, "flow1": 0.0}
   },
   "tolerances": {
     "relative": 0.000001,

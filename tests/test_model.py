@@ -329,6 +329,28 @@ def record_named(records, name):
     return next(record for record in records if record.get('name') == name)
 
 
+def test_qfr_uses_passive_element_initialization_sign():
+    records = valid_network_records()
+    record_named(records, 'fixed')['pres'] = 10.0
+    element = record_named(records, 'opening')
+    element.clear()
+    element.update(
+        {
+            'input_type': airnet.InputType.ELEMENT,
+            'name': 'opening',
+            'type': 'qfr',
+            'a': 2.0,
+            'b': 3.0,
+        }
+    )
+    model = airnet.Model(records)
+
+    model.initialize(maxiter=10)
+
+    assert model.nodes['variable'].pressure == pytest.approx(10.0)
+    assert model.links[0].flow0 == pytest.approx(0.0)
+
+
 def test_model_construction_does_not_mutate_input_records():
     records = valid_network_records()
     original = copy.deepcopy(records)

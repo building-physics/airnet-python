@@ -278,18 +278,8 @@ class Afe_Qfr:
 
     def linearize(self, link, pdrop:float, multiplier:float=1.0,
                   control:float=1.0):
-        """Return AIRNET's zero-flow linearization coefficient."""
+        """Return the zero-flow linearization coefficient."""
         return 1.0 / self.a
-
-    def initialization_flow(self, link, pdrop:float,
-                            multiplier:float=1.0, control:float=1.0):
-        """Return AIRNET's historical QFR initialization residual flow.
-
-        Unlike the other passive elements, AIRNET applies the QFR
-        initialization coefficient with the same sign as the pressure drop.
-        Preserving that choice reproduces its nonlinear convergence path.
-        """
-        return self.linearize(link, pdrop, multiplier, control) * pdrop
 
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):
