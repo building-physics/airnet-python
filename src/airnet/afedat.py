@@ -421,9 +421,6 @@ class Afe_Dor(Afe_Plr):
         return nf, flow0, flow1
 
 class Afe_Cfr:
-    connects_initialization_pressures = False
-    uses_input_orientation = True
-
     def __init__(self, flow:float=0.0):
         self.flow_rate = flow # rated flow rate (kg/s)
     
@@ -440,12 +437,12 @@ class Afe_Cfr:
     def initialization(self, link, pdrop:float, multiplier:float=1.0,
                        control:float=1.0):
         """Return the initialization flow and its pressure derivative."""
-        return self.flow_rate * control, 0.0
+        return multiplier * self.flow_rate * control, 0.0
 
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):
         """Return the pressure-independent flow and zero derivative."""
-        return 1, self.flow_rate * control, 0.0, 0.0, 0.0
+        return 1, multiplier * self.flow_rate * control, 0.0, 0.0, 0.0
 
     def flow(self, link, pdrop:float, multiplier:float=1.0,
              control:float=1.0):
@@ -496,9 +493,6 @@ class Afe_Cpf:
         return 'cpf'
 
 class Afe_Ckv:
-    connects_initialization_pressures = False
-    uses_input_orientation = True
-
     def __init__(self, dp0:float=0.0, coef:float=0.0):
         if coef <= 0.0:
             raise ValueError('Check-valve flow coefficient must be positive')
@@ -523,14 +517,15 @@ class Afe_Ckv:
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):
         """Compute the positive-input-direction check-valve flow."""
-        pressure_above_cutoff = pdrop - self.dp0
+        pressure_above_cutoff = multiplier * pdrop - self.dp0
         if pressure_above_cutoff <= 0.0:
             return 1, 0.0, 0.0, 0.0, 0.0
 
-        flow = math.pow(
+        input_flow = math.pow(
             self.coef * pressure_above_cutoff, 1.1
         )
-        derivative = 1.1 * flow / pressure_above_cutoff
+        flow = multiplier * input_flow
+        derivative = 1.1 * input_flow / pressure_above_cutoff
         return 1, flow, 0.0, derivative, 0.0
 
     def flow(self, link, pdrop:float, multiplier:float=1.0,

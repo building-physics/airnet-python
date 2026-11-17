@@ -157,24 +157,6 @@ class Model:
         {'plr', 'dwc', 'qfr', 'dor', 'cfr', 'ckv'}
     )
 
-    @staticmethod
-    def _to_element_pressure_drop(link, pressure_drop):
-        if (
-            link.flipped
-            and getattr(link.element, 'uses_input_orientation', False)
-        ):
-            return -pressure_drop
-        return pressure_drop
-
-    @staticmethod
-    def _to_internal_flow(link, flow):
-        if (
-            link.flipped
-            and getattr(link.element, 'uses_input_orientation', False)
-        ):
-            return -flow
-        return flow
-
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
                  link_object=Link, global_temperature:float|None=None, global_density:float|None=None):
         self.title = ''
@@ -323,7 +305,7 @@ class Model:
             element = self.elements[element_name]
             adjacency[node0_name].add(node1_name)
             adjacency[node1_name].add(node0_name)
-            if getattr(element, 'connects_initialization_pressures', True):
+            if element.type() not in ['ckv', 'cfr']:
                 pressure_adjacency[node0_name].add(node1_name)
                 pressure_adjacency[node1_name].add(node0_name)
             flip = not node0.variable and node1.variable
@@ -332,6 +314,7 @@ class Model:
             if flip:
                 link_node0, link_ht0 = node1, ht1
                 link_node1, link_ht1 = node0, ht0
+                link['mult'] = -link.get('mult', 1.0)
             else:
                 link_node0, link_ht0 = node0, ht0
                 link_node1, link_ht1 = node1, ht1
@@ -537,11 +520,9 @@ class Model:
                 pdrop = (
                     link.node0.pressure - link.node1.pressure + link.pdrop
                 )
-                element_pdrop = self._to_element_pressure_drop(link, pdrop)
                 flow, derivative = link.element.initialization(
-                    link, pdrop=element_pdrop
+                    link, pdrop=pdrop, multiplier=link.multiplier
                 )
-                flow = self._to_internal_flow(link, flow)
                 right_hand_side = -flow
                 if not math.isfinite(derivative) or not math.isfinite(
                     right_hand_side
@@ -577,11 +558,9 @@ class Model:
         # Update the flows
         for link in self.links:
             pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
-            element_pdrop = self._to_element_pressure_drop(link, pdrop)
             flow, derivative = link.element.initialization(
-                link, pdrop=element_pdrop
+                link, pdrop=pdrop, multiplier=link.multiplier
             )
-            flow = self._to_internal_flow(link, flow)
             if not math.isfinite(derivative) or not math.isfinite(flow):
                 raise NumericalSolverError(
                     f'Element on link "{link.name}" produced a non-finite '
@@ -671,13 +650,10 @@ class Model:
             sum_abs_flow = numpy.zeros(self.size, dtype=numpy.double)
             for link in self.links:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
-                element_pdrop = self._to_element_pressure_drop(link, pdrop)
                 if link.node0.variable:
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(
-                        link, element_pdrop
+                        link, pdrop, multiplier=link.multiplier
                     )
-                    link.flow0 = self._to_internal_flow(link, link.flow0)
-                    link.flow1 = self._to_internal_flow(link, link.flow1)
                     if not all(
                         math.isfinite(value)
                         for value in (link.flow0, link.flow1, df0, df1)
@@ -702,10 +678,8 @@ class Model:
                         self.A[link.node1.index, link.node0.index] -= derivative
                 else:
                     nf, link.flow0, link.flow1 = link.element.flow(
-                        link, element_pdrop
+                        link, pdrop, multiplier=link.multiplier
                     )
-                    link.flow0 = self._to_internal_flow(link, link.flow0)
-                    link.flow1 = self._to_internal_flow(link, link.flow1)
                     if not all(
                         math.isfinite(value)
                         for value in (link.flow0, link.flow1)

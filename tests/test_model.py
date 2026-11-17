@@ -179,7 +179,13 @@ def test_air_movement_rejects_non_finite_element_results(monkeypatch):
     monkeypatch.setattr(
         model.links[0].element,
         'jacobian',
-        lambda link, pdrop: (1, float('nan'), 0.0, 1.0, 0.0),
+        lambda link, pdrop, multiplier=1.0: (
+            1,
+            float('nan'),
+            0.0,
+            1.0,
+            0.0,
+        ),
     )
 
     with pytest.raises(airnet.NumericalSolverError, match='link "link-1"'):
@@ -208,14 +214,16 @@ class TwoWayElement:
     def type(self):
         return 'two'
 
-    def initialization(self, link, pdrop):
+    def initialization(self, link, pdrop, multiplier=1.0):
         return 2.0 * pdrop, 2.0
 
-    def jacobian(self, link, pdrop):
+    def jacobian(self, link, pdrop, multiplier=1.0):
         return 2, pdrop + 2.0, pdrop - 1.0, 1.0, 1.0
 
-    def flow(self, link, pdrop):
-        nf, flow0, flow1, _, _ = self.jacobian(link, pdrop)
+    def flow(self, link, pdrop, multiplier=1.0):
+        nf, flow0, flow1, _, _ = self.jacobian(
+            link, pdrop, multiplier
+        )
         return nf, flow0, flow1
 
 
@@ -329,7 +337,7 @@ def record_named(records, name):
     return next(record for record in records if record.get('name') == name)
 
 
-def test_cfr_initialization_is_converted_to_internal_link_orientation():
+def test_cfr_uses_negative_multiplier_when_link_is_reordered():
     records = valid_network_records()
     records.extend(
         [
@@ -356,6 +364,7 @@ def test_cfr_initialization_is_converted_to_internal_link_orientation():
 
     supply_link = next(link for link in model.links if link.name == 'supply-link')
     assert supply_link.flipped
+    assert supply_link.multiplier == -1.0
     assert supply_link.flow0 == -1.0
 
     model.air_movement(maxiter=20)
@@ -363,7 +372,7 @@ def test_cfr_initialization_is_converted_to_internal_link_orientation():
     assert supply_link.flow0 == -1.0
 
 
-def test_ckv_input_orientation_is_converted_at_model_boundary():
+def test_ckv_uses_negative_multiplier_when_link_is_reordered():
     records = valid_network_records()
     records.extend(
         [
@@ -403,6 +412,7 @@ def test_ckv_input_orientation_is_converted_at_model_boundary():
         link for link in model.links if link.name == 'check-valve-link'
     )
     assert valve_link.flipped
+    assert valve_link.multiplier == -1.0
     assert valve_link.flow0 < 0.0
     assert opening_link.flow0 == pytest.approx(-valve_link.flow0)
 
