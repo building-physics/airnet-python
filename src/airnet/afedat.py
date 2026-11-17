@@ -416,7 +416,7 @@ class Afe_Dor(Afe_Plr):
 
 class Afe_Cfr:
     connects_initialization_pressures = False
-    flow_uses_input_orientation = True
+    uses_input_orientation = True
 
     def __init__(self, flow:float=0.0):
         self.flow_rate = flow # rated flow rate (kg/s)
@@ -491,6 +491,7 @@ class Afe_Cpf:
 
 class Afe_Ckv:
     connects_initialization_pressures = False
+    uses_input_orientation = True
 
     def __init__(self, dp0:float=0.0, coef:float=0.0):
         if coef <= 0.0:
@@ -521,16 +522,14 @@ class Afe_Ckv:
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):
         """Compute the positive-input-direction check-valve flow."""
-        input_pressure = -pdrop if link.flipped else pdrop
-        pressure_above_cutoff = input_pressure - self.dp0
+        pressure_above_cutoff = pdrop - self.dp0
         if pressure_above_cutoff <= 0.0:
             return 1, 0.0, 0.0, 0.0, 0.0
 
-        input_flow = math.pow(
+        flow = math.pow(
             self.coef * pressure_above_cutoff, 1.1
         )
-        derivative = 1.1 * input_flow / pressure_above_cutoff
-        flow = -input_flow if link.flipped else input_flow
+        derivative = 1.1 * flow / pressure_above_cutoff
         return 1, flow, 0.0, derivative, 0.0
 
     def flow(self, link, pdrop:float, multiplier:float=1.0,

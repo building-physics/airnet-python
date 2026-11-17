@@ -363,6 +363,50 @@ def test_cfr_initialization_is_converted_to_internal_link_orientation():
     assert supply_link.flow0 == -1.0
 
 
+def test_ckv_input_orientation_is_converted_at_model_boundary():
+    records = valid_network_records()
+    records.extend(
+        [
+            {
+                'input_type': airnet.InputType.NODE,
+                'name': 'high-pressure',
+                'type': 'c',
+                'ht': 0.0,
+                'temp': 20.0,
+                'pres': 10.0,
+            },
+            {
+                'input_type': airnet.InputType.ELEMENT,
+                'name': 'check-valve',
+                'type': 'ckv',
+                'dp0': 0.5,
+                'coef': 0.1,
+            },
+            {
+                'input_type': airnet.InputType.LINK,
+                'name': 'check-valve-link',
+                'node-1': 'high-pressure',
+                'ht-1': 0.0,
+                'node-2': 'variable',
+                'ht-2': 0.0,
+                'element': 'check-valve',
+            },
+        ]
+    )
+    model = airnet.Model(records)
+
+    model.initialize(maxiter=10)
+    model.air_movement(maxiter=50)
+
+    opening_link = next(link for link in model.links if link.name == 'connection')
+    valve_link = next(
+        link for link in model.links if link.name == 'check-valve-link'
+    )
+    assert valve_link.flipped
+    assert valve_link.flow0 < 0.0
+    assert opening_link.flow0 == pytest.approx(-valve_link.flow0)
+
+
 def test_qfr_uses_passive_element_initialization_sign():
     records = valid_network_records()
     record_named(records, 'fixed')['pres'] = 10.0

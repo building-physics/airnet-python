@@ -173,14 +173,14 @@ def test_cfr_flow_is_pressure_independent():
 @pytest.mark.parametrize('pressure', [-1.0, 0.0, 0.5])
 def test_ckv_is_closed_at_and_below_cutoff(pressure):
     element = Afe_Ckv(dp0=0.5, coef=10.0)
-    link = SimpleNamespace(flipped=False)
+    link = SimpleNamespace()
 
     assert element.jacobian(link, pressure) == (1, 0.0, 0.0, 0.0, 0.0)
 
 
 def test_ckv_open_flow_and_jacobian_match_finite_difference():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
-    link = SimpleNamespace(flipped=False)
+    link = SimpleNamespace()
     pressure = 2.0
     step = 1.0e-6
 
@@ -199,16 +199,11 @@ def test_ckv_open_flow_and_jacobian_match_finite_difference():
     )
 
 
-def test_ckv_preserves_input_direction_when_link_is_flipped():
+def test_ckv_closes_against_its_input_direction():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
-    forward = SimpleNamespace(flipped=False)
-    reverse = SimpleNamespace(flipped=True)
+    link = SimpleNamespace()
 
-    forward_result = element.jacobian(forward, 2.0)
-    reverse_result = element.jacobian(reverse, -2.0)
-
-    assert reverse_result[1] == pytest.approx(-forward_result[1])
-    assert reverse_result[3] == pytest.approx(forward_result[3])
+    assert element.jacobian(link, -2.0) == (1, 0.0, 0.0, 0.0, 0.0)
 
 
 def make_doorway():

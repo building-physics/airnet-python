@@ -158,10 +158,19 @@ class Model:
     )
 
     @staticmethod
+    def _to_element_pressure_drop(link, pressure_drop):
+        if (
+            link.flipped
+            and getattr(link.element, 'uses_input_orientation', False)
+        ):
+            return -pressure_drop
+        return pressure_drop
+
+    @staticmethod
     def _to_internal_flow(link, flow):
         if (
             link.flipped
-            and getattr(link.element, 'flow_uses_input_orientation', False)
+            and getattr(link.element, 'uses_input_orientation', False)
         ):
             return -flow
         return flow
@@ -528,15 +537,18 @@ class Model:
         for link in self.links:
             if link.node0.variable:
                 pdrop = link.node0.pressure - link.node1.pressure
+                element_pdrop = self._to_element_pressure_drop(link, pdrop)
                 initialization_function = getattr(
                     link.element, 'initialization', None
                 )
                 if initialization_function is None:
-                    c = link.element.linearize(link, pdrop=pdrop)
-                    flow = c * pdrop
+                    c = link.element.linearize(link, pdrop=element_pdrop)
+                    flow = c * element_pdrop
                 else:
-                    flow, c = initialization_function(link, pdrop=pdrop)
-                    flow = self._to_internal_flow(link, flow)
+                    flow, c = initialization_function(
+                        link, pdrop=element_pdrop
+                    )
+                flow = self._to_internal_flow(link, flow)
                 initialization_flow = -flow
                 if not math.isfinite(c) or not math.isfinite(initialization_flow):
                     raise NumericalSolverError(
@@ -570,15 +582,18 @@ class Model:
         # Update the flows
         for link in self.links:
             pdrop = link.node0.pressure - link.node1.pressure
+            element_pdrop = self._to_element_pressure_drop(link, pdrop)
             initialization_function = getattr(
                 link.element, 'initialization', None
             )
             if initialization_function is None:
-                c = link.element.linearize(link, pdrop=pdrop)
-                flow = c * pdrop
+                c = link.element.linearize(link, pdrop=element_pdrop)
+                flow = c * element_pdrop
             else:
-                flow, c = initialization_function(link, pdrop=pdrop)
-                flow = self._to_internal_flow(link, flow)
+                flow, c = initialization_function(
+                    link, pdrop=element_pdrop
+                )
+            flow = self._to_internal_flow(link, flow)
             if not math.isfinite(c) or not math.isfinite(flow):
                 raise NumericalSolverError(
                     f'Element on link "{link.name}" produced a non-finite '
@@ -668,8 +683,11 @@ class Model:
             sum_abs_flow = numpy.zeros(self.size, dtype=numpy.double)
             for link in self.links:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
+                element_pdrop = self._to_element_pressure_drop(link, pdrop)
                 if link.node0.variable:
-                    nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
+                    nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(
+                        link, element_pdrop
+                    )
                     link.flow0 = self._to_internal_flow(link, link.flow0)
                     link.flow1 = self._to_internal_flow(link, link.flow1)
                     if not all(
@@ -695,7 +713,9 @@ class Model:
                         self.A[link.node0.index, link.node1.index] -= derivative
                         self.A[link.node1.index, link.node0.index] -= derivative
                 else:
-                    nf, link.flow0, link.flow1 = link.element.flow(link, pdrop)
+                    nf, link.flow0, link.flow1 = link.element.flow(
+                        link, element_pdrop
+                    )
                     link.flow0 = self._to_internal_flow(link, link.flow0)
                     link.flow1 = self._to_internal_flow(link, link.flow1)
                     if not all(
