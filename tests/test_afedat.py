@@ -160,15 +160,14 @@ def test_qfr_jacobian_matches_finite_difference(pressure):
     )
 
 
-def test_cfr_flow_is_pressure_independent_and_orientation_aware():
+def test_cfr_flow_is_pressure_independent():
     element = Afe_Cfr(flow=1.25)
-    forward = SimpleNamespace(flipped=False)
-    reverse = SimpleNamespace(flipped=True)
+    link = SimpleNamespace()
 
-    assert element.linearize(forward, 100.0) == 0.0
-    assert element.initialization_flow(forward, 0.0) == -1.25
-    assert element.jacobian(forward, -100.0) == (1, 1.25, 0.0, 0.0, 0.0)
-    assert element.jacobian(reverse, 100.0) == (1, -1.25, 0.0, 0.0, 0.0)
+    assert element.initialization(link, 100.0) == (1.25, 0.0)
+    assert element.initialization(link, -100.0) == (1.25, 0.0)
+    assert element.jacobian(link, -100.0) == (1, 1.25, 0.0, 0.0, 0.0)
+    assert element.jacobian(link, 100.0) == (1, 1.25, 0.0, 0.0, 0.0)
 
 
 @pytest.mark.parametrize('pressure', [-1.0, 0.0, 0.5])

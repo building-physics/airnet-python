@@ -329,6 +329,40 @@ def record_named(records, name):
     return next(record for record in records if record.get('name') == name)
 
 
+def test_cfr_initialization_is_converted_to_internal_link_orientation():
+    records = valid_network_records()
+    records.extend(
+        [
+            {
+                'input_type': airnet.InputType.ELEMENT,
+                'name': 'supply',
+                'type': 'cfr',
+                'flow': 1.0,
+            },
+            {
+                'input_type': airnet.InputType.LINK,
+                'name': 'supply-link',
+                'node-1': 'fixed',
+                'ht-1': 0.0,
+                'node-2': 'variable',
+                'ht-2': 0.0,
+                'element': 'supply',
+            },
+        ]
+    )
+    model = airnet.Model(records)
+
+    model.initialize(maxiter=10)
+
+    supply_link = next(link for link in model.links if link.name == 'supply-link')
+    assert supply_link.flipped
+    assert supply_link.flow0 == -1.0
+
+    model.air_movement(maxiter=20)
+
+    assert supply_link.flow0 == -1.0
+
+
 def test_qfr_uses_passive_element_initialization_sign():
     records = valid_network_records()
     record_named(records, 'fixed')['pres'] = 10.0

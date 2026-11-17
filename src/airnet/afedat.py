@@ -416,6 +416,7 @@ class Afe_Dor(Afe_Plr):
 
 class Afe_Cfr:
     connects_initialization_pressures = False
+    flow_uses_input_orientation = True
 
     def __init__(self, flow:float=0.0):
         self.flow_rate = flow # rated flow rate (kg/s)
@@ -430,29 +431,15 @@ class Afe_Cfr:
         """
         return 'cfr'
 
-    def _oriented_flow(self, link, control):
-        flow = self.flow_rate * control
-        return -flow if link.flipped else flow
-
-    def linearize(self, link, pdrop:float, multiplier:float=1.0,
-                  control:float=1.0):
-        """Return the zero pressure derivative of a constant-flow element."""
-        return 0.0
-
-    def initialization_flow(self, link, pdrop:float,
-                            multiplier:float=1.0, control:float=1.0):
-        """Return AIRNET's initialization residual-flow contribution."""
-        return -self._oriented_flow(link, control)
-
-    def initialization_source(self, link, pdrop:float,
-                              multiplier:float=1.0, control:float=1.0):
-        """Return the constant term in the physical linear flow relation."""
-        return self._oriented_flow(link, control)
+    def initialization(self, link, pdrop:float, multiplier:float=1.0,
+                       control:float=1.0):
+        """Return the initialization flow and its pressure derivative."""
+        return self.flow_rate * control, 0.0
 
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):
         """Return the pressure-independent flow and zero derivative."""
-        return 1, self._oriented_flow(link, control), 0.0, 0.0, 0.0
+        return 1, self.flow_rate * control, 0.0, 0.0, 0.0
 
     def flow(self, link, pdrop:float, multiplier:float=1.0,
              control:float=1.0):

@@ -157,6 +157,15 @@ class Model:
         {'plr', 'dwc', 'qfr', 'dor', 'cfr', 'ckv'}
     )
 
+    @staticmethod
+    def _to_internal_flow(link, flow):
+        if (
+            link.flipped
+            and getattr(link.element, 'flow_uses_input_orientation', False)
+        ):
+            return -flow
+        return flow
+
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
                  link_object=Link, global_temperature:float|None=None, global_density:float|None=None):
         self.title = ''
@@ -242,9 +251,14 @@ class Model:
                     ) from error
                 missing_methods = [
                     method
-                    for method in ('linearize', 'flow', 'jacobian')
+                    for method in ('flow', 'jacobian')
                     if not callable(getattr(element, method, None))
                 ]
+                if not any(
+                    callable(getattr(element, method, None))
+                    for method in ('initialization', 'linearize')
+                ):
+                    missing_methods.append('initialization')
                 if missing_methods:
                     raise UnsupportedNetworkFeature(
                         f'Element "{name}" does not implement '
@@ -514,15 +528,16 @@ class Model:
         for link in self.links:
             if link.node0.variable:
                 pdrop = link.node0.pressure - link.node1.pressure
-                c = link.element.linearize(link, pdrop=pdrop)
-                flow_function = getattr(
-                    link.element, 'initialization_flow', None
+                initialization_function = getattr(
+                    link.element, 'initialization', None
                 )
-                initialization_flow = (
-                    flow_function(link, pdrop=pdrop)
-                    if flow_function is not None
-                    else -c * pdrop
-                )
+                if initialization_function is None:
+                    c = link.element.linearize(link, pdrop=pdrop)
+                    flow = c * pdrop
+                else:
+                    flow, c = initialization_function(link, pdrop=pdrop)
+                    flow = self._to_internal_flow(link, flow)
+                initialization_flow = -flow
                 if not math.isfinite(c) or not math.isfinite(initialization_flow):
                     raise NumericalSolverError(
                         f'Element on link "{link.name}" produced a non-finite '
@@ -555,16 +570,15 @@ class Model:
         # Update the flows
         for link in self.links:
             pdrop = link.node0.pressure - link.node1.pressure
-            c = link.element.linearize(link, pdrop=pdrop)
-            source_function = getattr(
-                link.element, 'initialization_source', None
+            initialization_function = getattr(
+                link.element, 'initialization', None
             )
-            source = (
-                source_function(link, pdrop=pdrop)
-                if source_function is not None
-                else 0.0
-            )
-            flow = c * pdrop + source
+            if initialization_function is None:
+                c = link.element.linearize(link, pdrop=pdrop)
+                flow = c * pdrop
+            else:
+                flow, c = initialization_function(link, pdrop=pdrop)
+                flow = self._to_internal_flow(link, flow)
             if not math.isfinite(c) or not math.isfinite(flow):
                 raise NumericalSolverError(
                     f'Element on link "{link.name}" produced a non-finite '
@@ -656,6 +670,8 @@ class Model:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                 if link.node0.variable:
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(link, pdrop)
+                    link.flow0 = self._to_internal_flow(link, link.flow0)
+                    link.flow1 = self._to_internal_flow(link, link.flow1)
                     if not all(
                         math.isfinite(value)
                         for value in (link.flow0, link.flow1, df0, df1)
@@ -680,6 +696,8 @@ class Model:
                         self.A[link.node1.index, link.node0.index] -= derivative
                 else:
                     nf, link.flow0, link.flow1 = link.element.flow(link, pdrop)
+                    link.flow0 = self._to_internal_flow(link, link.flow0)
+                    link.flow1 = self._to_internal_flow(link, link.flow1)
                     if not all(
                         math.isfinite(value)
                         for value in (link.flow0, link.flow1)
