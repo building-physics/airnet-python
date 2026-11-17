@@ -208,8 +208,8 @@ class TwoWayElement:
     def type(self):
         return 'two'
 
-    def linearize(self, link, pdrop):
-        return 2.0
+    def initialization(self, link, pdrop):
+        return 2.0 * pdrop, 2.0
 
     def jacobian(self, link, pdrop):
         return 2, pdrop + 2.0, pdrop - 1.0, 1.0, 1.0

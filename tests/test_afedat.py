@@ -39,7 +39,27 @@ def test_plr_one_way_return_contract(pressure):
     assert derivative0 > 0.0
 
 
-def test_dwc_linearization_uses_upwind_properties():
+@pytest.mark.parametrize(
+    ('pressure', 'upwind_node'),
+    [(1.5, 0), (-1.5, 1), (0.0, 1)],
+)
+def test_plr_initialization_returns_flow_and_derivative(
+    pressure, upwind_node
+):
+    element = Afe_Plr(init=0.01)
+    nodes = (
+        make_node(density=1.2, viscosity=1.8e-5),
+        make_node(density=0.9, viscosity=2.0e-5),
+    )
+    link = SimpleNamespace(node0=nodes[0], node1=nodes[1])
+    derivative = element.init * nodes[upwind_node].dvisc
+
+    assert element.initialization(link, pressure) == pytest.approx(
+        (derivative * pressure, derivative)
+    )
+
+
+def test_dwc_initialization_uses_upwind_properties():
     element = Afe_Dwc(
         length=2.0,
         hdia=0.25,
@@ -58,8 +78,12 @@ def test_dwc_linearization_uses_upwind_properties():
     positive = 2.0 * 1.2 * 0.04909 * 0.25 / (1.8e-5 * 128.0 * 8.0)
     negative = 2.0 * 0.9 * 0.04909 * 0.25 / (2.0e-5 * 128.0 * 8.0)
 
-    assert element.linearize(link, 1.0) == pytest.approx(positive)
-    assert element.linearize(link, -1.0) == pytest.approx(negative)
+    assert element.initialization(link, 1.0) == pytest.approx(
+        (positive, positive)
+    )
+    assert element.initialization(link, -1.0) == pytest.approx(
+        (-negative, negative)
+    )
 
 
 def test_dwc_laminar_jacobian_matches_finite_difference():
@@ -160,6 +184,12 @@ def test_qfr_jacobian_matches_finite_difference(pressure):
     )
 
 
+def test_qfr_initialization_returns_flow_and_derivative():
+    element = Afe_Qfr(a=0.25, b=3.0)
+
+    assert element.initialization(SimpleNamespace(), -2.0) == (-8.0, 4.0)
+
+
 def test_cfr_flow_is_pressure_independent():
     element = Afe_Cfr(flow=1.25)
     link = SimpleNamespace()
@@ -176,6 +206,12 @@ def test_ckv_is_closed_at_and_below_cutoff(pressure):
     link = SimpleNamespace()
 
     assert element.jacobian(link, pressure) == (1, 0.0, 0.0, 0.0, 0.0)
+
+
+def test_ckv_initialization_is_closed():
+    element = Afe_Ckv(dp0=0.5, coef=10.0)
+
+    assert element.initialization(SimpleNamespace(), 2.0) == (0.0, 0.0)
 
 
 def test_ckv_open_flow_and_jacobian_match_finite_difference():
@@ -234,8 +270,8 @@ def test_dor_uses_midheight_power_law_below_temperature_threshold():
     pressure = 1.25
     adjusted_pressure = pressure - 0.5 * doorway.ht * 9.8 * 0.10
 
-    assert doorway.linearize(link, pressure) == pytest.approx(
-        power_law.linearize(link, adjusted_pressure)
+    assert doorway.initialization(link, pressure) == pytest.approx(
+        power_law.initialization(link, adjusted_pressure)
     )
     assert doorway.jacobian(link, pressure) == pytest.approx(
         power_law.jacobian(link, adjusted_pressure)

@@ -34,11 +34,11 @@ class Afe_Plr:
         """
         return 'plr'
 
-    def linearize(self, link, pdrop:float, multiplier:float=1.0,
-                  control:float=1.0):
-        """Compute the linear flow coeffient.
+    def initialization(self, link, pdrop:float, multiplier:float=1.0,
+                       control:float=1.0):
+        """Compute the initialization flow and pressure derivative.
         
-        The function computes the linear coefficient for use in initialization.
+        The function computes the linear flow relation used in initialization.
         
         Parameters
         ----------
@@ -52,8 +52,10 @@ class Afe_Plr:
             The control signal that is used to control flow for some elements. Defaults to 1.
         """
         if pdrop > 0.0:
-            return self.init * link.node0.dvisc
-        return self.init * link.node1.dvisc
+            derivative = self.init * link.node0.dvisc
+        else:
+            derivative = self.init * link.node1.dvisc
+        return derivative * pdrop, derivative
 
     def flow(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
         """Compute the flow through an element.
@@ -156,14 +158,15 @@ class Afe_Dwc:
         """
         return 'dwc'
 
-    def linearize(self, link, pdrop:float, multiplier:float=1.0,
-                  control:float=1.0):
-        """Compute AIRNET's laminar initialization coefficient."""
+    def initialization(self, link, pdrop:float, multiplier:float=1.0,
+                       control:float=1.0):
+        """Compute AIRNET's laminar initialization flow and derivative."""
         node = link.node0 if pdrop >= 0.0 else link.node1
-        return (
+        derivative = (
             2.0 * node.density * self.area * self.hdia
             / (node.viscosity * self.linit * self.ld)
         )
+        return derivative * pdrop, derivative
 
     def _friction_factor(self, reynolds:float):
         """Update the Darcy friction factor using AIRNET's Colebrook solve."""
@@ -276,10 +279,11 @@ class Afe_Qfr:
         """
         return 'qfr'
 
-    def linearize(self, link, pdrop:float, multiplier:float=1.0,
-                  control:float=1.0):
-        """Return the zero-flow linearization coefficient."""
-        return 1.0 / self.a
+    def initialization(self, link, pdrop:float, multiplier:float=1.0,
+                       control:float=1.0):
+        """Return the zero-flow initialization flow and derivative."""
+        derivative = 1.0 / self.a
+        return derivative * pdrop, derivative
 
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):
@@ -334,11 +338,13 @@ class Afe_Dor(Afe_Plr):
         drho = link.node0.density - link.node1.density
         return pdrop - 0.5 * self.ht * 9.8 * drho
 
-    def linearize(self, link, pdrop:float, multiplier:float=1.0,
-                  control:float=1.0):
-        """Compute the power-law initialization coefficient."""
+    def initialization(self, link, pdrop:float, multiplier:float=1.0,
+                       control:float=1.0):
+        """Compute the power-law initialization flow and derivative."""
         adjusted_pdrop = self._power_law_pressure_drop(link, pdrop)
-        return super().linearize(link, adjusted_pdrop, multiplier, control)
+        return super().initialization(
+            link, adjusted_pdrop, multiplier, control
+        )
 
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):
@@ -509,15 +515,10 @@ class Afe_Ckv:
         """
         return 'ckv'
 
-    def linearize(self, link, pdrop:float, multiplier:float=1.0,
-                  control:float=1.0):
-        """Return AIRNET's closed-valve initialization derivative."""
-        return 0.0
-
-    def initialization_flow(self, link, pdrop:float,
-                            multiplier:float=1.0, control:float=1.0):
-        """Return AIRNET's zero check-valve initialization flow."""
-        return 0.0
+    def initialization(self, link, pdrop:float, multiplier:float=1.0,
+                       control:float=1.0):
+        """Return AIRNET's closed-valve initialization relation."""
+        return 0.0, 0.0
 
     def jacobian(self, link, pdrop:float, multiplier:float=1.0,
                  control:float=1.0):

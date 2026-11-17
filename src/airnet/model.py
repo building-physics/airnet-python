@@ -260,14 +260,9 @@ class Model:
                     ) from error
                 missing_methods = [
                     method
-                    for method in ('flow', 'jacobian')
+                    for method in ('initialization', 'flow', 'jacobian')
                     if not callable(getattr(element, method, None))
                 ]
-                if not any(
-                    callable(getattr(element, method, None))
-                    for method in ('initialization', 'linearize')
-                ):
-                    missing_methods.append('initialization')
                 if missing_methods:
                     raise UnsupportedNetworkFeature(
                         f'Element "{name}" does not implement '
@@ -532,39 +527,39 @@ class Model:
         if maxiter < 1:
             raise ValueError('Maximum initialization iterations must be at least 1')
 
+        # AIRNET includes stack and wind terms in the pressure drop passed to
+        # each element during linear initialization.
+        self.compute_pressure_drops()
         self.A.data.fill(0.0)
         self.x.fill(0.0)
         for link in self.links:
             if link.node0.variable:
-                pdrop = link.node0.pressure - link.node1.pressure
-                element_pdrop = self._to_element_pressure_drop(link, pdrop)
-                initialization_function = getattr(
-                    link.element, 'initialization', None
+                pdrop = (
+                    link.node0.pressure - link.node1.pressure + link.pdrop
                 )
-                if initialization_function is None:
-                    c = link.element.linearize(link, pdrop=element_pdrop)
-                    flow = c * element_pdrop
-                else:
-                    flow, c = initialization_function(
-                        link, pdrop=element_pdrop
-                    )
+                element_pdrop = self._to_element_pressure_drop(link, pdrop)
+                flow, derivative = link.element.initialization(
+                    link, pdrop=element_pdrop
+                )
                 flow = self._to_internal_flow(link, flow)
-                initialization_flow = -flow
-                if not math.isfinite(c) or not math.isfinite(initialization_flow):
+                right_hand_side = -flow
+                if not math.isfinite(derivative) or not math.isfinite(
+                    right_hand_side
+                ):
                     raise NumericalSolverError(
                         f'Element on link "{link.name}" produced a non-finite '
-                        'initialization coefficient or residual flow'
+                        'initialization derivative or residual flow'
                     )
-                self.x[link.node0.index] += initialization_flow
+                self.x[link.node0.index] += right_hand_side
                 # diagonal term
-                self.A[link.node0.index, link.node0.index] += c
+                self.A[link.node0.index, link.node0.index] += derivative
                 if link.node1.variable:
-                    self.x[link.node1.index] -= initialization_flow
+                    self.x[link.node1.index] -= right_hand_side
                     # diagonal term
-                    self.A[link.node1.index, link.node1.index] += c
+                    self.A[link.node1.index, link.node1.index] += derivative
                     # off diagonal terms
-                    self.A[link.node0.index, link.node1.index] -= c
-                    self.A[link.node1.index, link.node0.index] -= c
+                    self.A[link.node0.index, link.node1.index] -= derivative
+                    self.A[link.node1.index, link.node0.index] -= derivative
         solution, info = scipy.sparse.linalg.cg(
             self.A, self.x, rtol=1.0e-12, atol=0.0, maxiter=maxiter
         )
@@ -581,20 +576,13 @@ class Model:
             node.pressure = self.x[node.index]
         # Update the flows
         for link in self.links:
-            pdrop = link.node0.pressure - link.node1.pressure
+            pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
             element_pdrop = self._to_element_pressure_drop(link, pdrop)
-            initialization_function = getattr(
-                link.element, 'initialization', None
+            flow, derivative = link.element.initialization(
+                link, pdrop=element_pdrop
             )
-            if initialization_function is None:
-                c = link.element.linearize(link, pdrop=element_pdrop)
-                flow = c * element_pdrop
-            else:
-                flow, c = initialization_function(
-                    link, pdrop=element_pdrop
-                )
             flow = self._to_internal_flow(link, flow)
-            if not math.isfinite(c) or not math.isfinite(flow):
+            if not math.isfinite(derivative) or not math.isfinite(flow):
                 raise NumericalSolverError(
                     f'Element on link "{link.name}" produced a non-finite '
                     'initialization flow'
