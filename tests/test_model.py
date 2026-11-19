@@ -685,12 +685,13 @@ def test_model_accepts_positive_link_multiplier():
     assert model.links[0].multiplier == 2.5
 
 
-def test_model_rejects_unsupported_ambient_node_behavior():
+def test_model_uses_weather_temperature_for_ambient_node():
     records = valid_network_records()
     record_named(records, 'fixed')['type'] = 'a'
 
-    with pytest.raises(
-        airnet.UnsupportedNetworkFeature,
-        match='unsupported ambient-node behavior',
-    ):
-        airnet.Model(records)
+    model = airnet.Model(records, ambient_temperature=-5.0)
+
+    ambient = model.nodes['fixed']
+    assert ambient.ambient
+    assert not ambient.variable
+    assert ambient.temperature == pytest.approx(268.15)

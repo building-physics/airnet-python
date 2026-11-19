@@ -125,7 +125,8 @@ class Afe_Plr:
                 f = ft
                 df = ft * self.expt / pdrop
         else:
-            cdm = 0.5 * self.lam * (link.node0.dvisc + link.node1.dvisc) # original code used node0
+            # AIRNET selects the first node at exactly zero pressure drop.
+            cdm = self.lam * link.node0.dvisc
             f = fl = ft = 0.0
             df = cdm
         multiplier = abs(link.multiplier)

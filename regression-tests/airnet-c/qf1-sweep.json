@@ -1,0 +1,1027 @@
+{
+  "case": "QF1",
+  "network": "AFDATA.QF1",
+  "source_report": "reviewed AIRNET-C run using the corrected QFR initialization",
+  "runs": [
+    {
+      "source_run": 1,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 0.01,
+        "duct-1": 0.008,
+        "duct-2": 0.005,
+        "dplr-1": 0.007999998,
+        "dplr-2": 0.004999998,
+        "dqfr-1": 0.008000001,
+        "dqfr-2": 0.004999998,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          0.01,
+          0.004924572,
+          0.0
+        ],
+        "duct-1": [
+          0.002,
+          0.004924572,
+          0.0
+        ],
+        "duct-2": [
+          0.003,
+          0.004924571,
+          0.0
+        ],
+        "duct-3": [
+          0.005,
+          0.004924572,
+          0.0
+        ],
+        "dplr-1": [
+          0.002000002,
+          0.004530217,
+          0.0
+        ],
+        "dplr-2": [
+          0.002999999,
+          0.004530217,
+          0.0
+        ],
+        "dplr-3": [
+          0.004999998,
+          0.004530217,
+          0.0
+        ],
+        "dqfr-1": [
+          0.001999998,
+          0.004062676,
+          0.0
+        ],
+        "dqfr-2": [
+          0.003000003,
+          0.004062676,
+          0.0
+        ],
+        "dqfr-3": [
+          0.004999998,
+          0.004062677,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 2,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 0.02,
+        "duct-1": 0.016,
+        "duct-2": 0.01,
+        "dplr-1": 0.01600001,
+        "dplr-2": 0.009999991,
+        "dqfr-1": 0.016,
+        "dqfr-2": 0.009999995,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          0.02,
+          0.007370743,
+          0.0
+        ],
+        "duct-1": [
+          0.004,
+          0.007370743,
+          0.0
+        ],
+        "duct-2": [
+          0.006,
+          0.007370742,
+          0.0
+        ],
+        "duct-3": [
+          0.01,
+          0.007370742,
+          0.0
+        ],
+        "dplr-1": [
+          0.003999988,
+          0.008070395,
+          0.0
+        ],
+        "dplr-2": [
+          0.00600002,
+          0.008070384,
+          0.0
+        ],
+        "dplr-3": [
+          0.009999991,
+          0.008070391,
+          0.0
+        ],
+        "dqfr-1": [
+          0.003999998,
+          0.006600582,
+          0.0
+        ],
+        "dqfr-2": [
+          0.006000007,
+          0.006600583,
+          0.0
+        ],
+        "dqfr-3": [
+          0.009999995,
+          0.006600584,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 3,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 0.04,
+        "duct-1": 0.032,
+        "duct-2": 0.02,
+        "dplr-1": 0.03200002,
+        "dplr-2": 0.01999998,
+        "dqfr-1": 0.032,
+        "dqfr-2": 0.01999999,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          0.04,
+          0.01095362,
+          0.0
+        ],
+        "duct-1": [
+          0.007999999,
+          0.01095362,
+          0.0
+        ],
+        "duct-2": [
+          0.012,
+          0.01095362,
+          0.0
+        ],
+        "duct-3": [
+          0.02,
+          0.01095362,
+          0.0
+        ],
+        "dplr-1": [
+          0.007999975,
+          0.01160818,
+          0.0
+        ],
+        "dplr-2": [
+          0.01200004,
+          0.01160817,
+          0.0
+        ],
+        "dplr-3": [
+          0.01999998,
+          0.01160818,
+          0.0
+        ],
+        "dqfr-1": [
+          0.007999998,
+          0.01034107,
+          0.0
+        ],
+        "dqfr-2": [
+          0.01200001,
+          0.01034107,
+          0.0
+        ],
+        "dqfr-3": [
+          0.01999999,
+          0.01034107,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 4,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 0.08,
+        "duct-1": 0.064,
+        "duct-2": 0.04,
+        "dplr-1": 0.06400006,
+        "dplr-2": 0.03999997,
+        "dqfr-1": 0.064,
+        "dqfr-2": 0.03999997,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          0.08,
+          0.01616494,
+          0.0
+        ],
+        "duct-1": [
+          0.01599999,
+          0.01616493,
+          0.0
+        ],
+        "duct-2": [
+          0.024,
+          0.01616493,
+          0.0
+        ],
+        "duct-3": [
+          0.04,
+          0.01616493,
+          0.0
+        ],
+        "dplr-1": [
+          0.01599995,
+          0.01669682,
+          0.0
+        ],
+        "dplr-2": [
+          0.02400008,
+          0.0166968,
+          0.0
+        ],
+        "dplr-3": [
+          0.03999997,
+          0.01669681,
+          0.0
+        ],
+        "dqfr-1": [
+          0.016,
+          0.015749,
+          0.0
+        ],
+        "dqfr-2": [
+          0.02400003,
+          0.015749,
+          0.0
+        ],
+        "dqfr-3": [
+          0.03999997,
+          0.01574901,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 5,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 0.16,
+        "duct-1": 0.128,
+        "duct-2": 0.08000002,
+        "dplr-1": 0.1280001,
+        "dplr-2": 0.07999996,
+        "dqfr-1": 0.128,
+        "dqfr-2": 0.07999994,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          0.16,
+          0.02369585,
+          0.0
+        ],
+        "duct-1": [
+          0.03199997,
+          0.02369584,
+          0.0
+        ],
+        "duct-2": [
+          0.048,
+          0.02369584,
+          0.0
+        ],
+        "duct-3": [
+          0.08000002,
+          0.02369584,
+          0.0
+        ],
+        "dplr-1": [
+          0.03199987,
+          0.02401615,
+          0.0
+        ],
+        "dplr-2": [
+          0.04800016,
+          0.02401611,
+          0.0
+        ],
+        "dplr-3": [
+          0.07999996,
+          0.02401613,
+          0.0
+        ],
+        "dqfr-1": [
+          0.032,
+          0.02348493,
+          0.0
+        ],
+        "dqfr-2": [
+          0.04800006,
+          0.02348493,
+          0.0
+        ],
+        "dqfr-3": [
+          0.07999994,
+          0.02348494,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 6,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 0.32,
+        "duct-1": 0.2560001,
+        "duct-2": 0.1600001,
+        "dplr-1": 0.2560003,
+        "dplr-2": 0.16,
+        "dqfr-1": 0.256,
+        "dqfr-2": 0.1599999,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          0.32,
+          0.03451603,
+          0.0
+        ],
+        "duct-1": [
+          0.06399988,
+          0.03451599,
+          0.0
+        ],
+        "duct-2": [
+          0.09600002,
+          0.03451599,
+          0.0
+        ],
+        "duct-3": [
+          0.1600001,
+          0.03451599,
+          0.0
+        ],
+        "dplr-1": [
+          0.06399969,
+          0.03454402,
+          0.0
+        ],
+        "dplr-2": [
+          0.09600034,
+          0.03454398,
+          0.0
+        ],
+        "dplr-3": [
+          0.16,
+          0.034544,
+          0.0
+        ],
+        "dqfr-1": [
+          0.064,
+          0.03448908,
+          0.0
+        ],
+        "dqfr-2": [
+          0.09600013,
+          0.03448909,
+          0.0
+        ],
+        "dqfr-3": [
+          0.1599999,
+          0.0344891,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 7,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 0.64,
+        "duct-1": 0.5120004,
+        "duct-2": 0.3200004,
+        "dplr-1": 0.5120009,
+        "dplr-2": 0.3200001,
+        "dqfr-1": 0.512,
+        "dqfr-2": 0.3199997,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          0.64,
+          0.04998709,
+          0.0
+        ],
+        "duct-1": [
+          0.1279995,
+          0.04998699,
+          0.0
+        ],
+        "duct-2": [
+          0.192,
+          0.04998699,
+          0.0
+        ],
+        "duct-3": [
+          0.3200004,
+          0.04998699,
+          0.0
+        ],
+        "dplr-1": [
+          0.1279992,
+          0.04968698,
+          0.0
+        ],
+        "dplr-2": [
+          0.1920007,
+          0.04968692,
+          0.0
+        ],
+        "dplr-3": [
+          0.3200001,
+          0.04968696,
+          0.0
+        ],
+        "dqfr-1": [
+          0.128,
+          0.0500971,
+          0.0
+        ],
+        "dqfr-2": [
+          0.1920003,
+          0.05009711,
+          0.0
+        ],
+        "dqfr-3": [
+          0.3199997,
+          0.05009713,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 8,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 1.28,
+        "duct-1": 1.024002,
+        "duct-2": 0.6400015,
+        "dplr-1": 1.024003,
+        "dplr-2": 0.6400011,
+        "dqfr-1": 1.024,
+        "dqfr-2": 0.6399994,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          1.28,
+          0.07202508,
+          0.0
+        ],
+        "duct-1": [
+          0.2559982,
+          0.07202481,
+          0.0
+        ],
+        "duct-2": [
+          0.3840002,
+          0.07202482,
+          0.0
+        ],
+        "duct-3": [
+          0.6400015,
+          0.07202481,
+          0.0
+        ],
+        "dplr-1": [
+          0.2559974,
+          0.07146816,
+          0.0
+        ],
+        "dplr-2": [
+          0.3840015,
+          0.07146809,
+          0.0
+        ],
+        "dplr-3": [
+          0.6400011,
+          0.07146815,
+          0.0
+        ],
+        "dqfr-1": [
+          0.256,
+          0.07220279,
+          0.0
+        ],
+        "dqfr-2": [
+          0.3840005,
+          0.07220281,
+          0.0
+        ],
+        "dqfr-3": [
+          0.6399994,
+          0.07220282,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 9,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 2.56,
+        "duct-1": 2.048007,
+        "duct-2": 1.280006,
+        "dplr-1": 2.048009,
+        "dplr-2": 1.280006,
+        "dqfr-1": 2.048,
+        "dqfr-2": 1.279999,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          2.56,
+          0.1033331,
+          0.0
+        ],
+        "duct-1": [
+          0.5119928,
+          0.1033323,
+          0.0
+        ],
+        "duct-2": [
+          0.7680009,
+          0.1033323,
+          0.0
+        ],
+        "duct-3": [
+          1.280006,
+          0.1033323,
+          0.0
+        ],
+        "dplr-1": [
+          0.511991,
+          0.1027976,
+          0.0
+        ],
+        "dplr-2": [
+          0.7680034,
+          0.1027976,
+          0.0
+        ],
+        "dplr-3": [
+          1.280006,
+          0.1027977,
+          0.0
+        ],
+        "dqfr-1": [
+          0.5120001,
+          0.1034881,
+          0.0
+        ],
+        "dqfr-2": [
+          0.7680011,
+          0.1034881,
+          0.0
+        ],
+        "dqfr-3": [
+          1.279999,
+          0.1034881,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 10,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 5.12,
+        "duct-1": 4.096028,
+        "duct-2": 2.560025,
+        "dplr-1": 4.096033,
+        "dplr-2": 2.560025,
+        "dqfr-1": 4.096,
+        "dqfr-2": 2.559998,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          5.12,
+          0.1477296,
+          0.0
+        ],
+        "duct-1": [
+          1.023971,
+          0.1477275,
+          0.0
+        ],
+        "duct-2": [
+          1.536003,
+          0.1477275,
+          0.0
+        ],
+        "duct-3": [
+          2.560025,
+          0.1477275,
+          0.0
+        ],
+        "dplr-1": [
+          1.023967,
+          0.1478614,
+          0.0
+        ],
+        "dplr-2": [
+          1.536008,
+          0.1478614,
+          0.0
+        ],
+        "dplr-3": [
+          2.560025,
+          0.1478616,
+          0.0
+        ],
+        "dqfr-1": [
+          1.024,
+          0.1477486,
+          0.0
+        ],
+        "dqfr-2": [
+          1.536002,
+          0.1477486,
+          0.0
+        ],
+        "dqfr-3": [
+          2.559998,
+          0.1477486,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 11,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 10.24,
+        "duct-1": 8.192115,
+        "duct-2": 5.120101,
+        "dplr-1": 8.192125,
+        "dplr-2": 5.120103,
+        "dqfr-1": 8.191999,
+        "dqfr-2": 5.119995,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          10.24,
+          0.210616,
+          0.0
+        ],
+        "duct-1": [
+          2.047885,
+          0.21061,
+          0.0
+        ],
+        "duct-2": [
+          3.072014,
+          0.21061,
+          0.0
+        ],
+        "duct-3": [
+          5.120101,
+          0.21061,
+          0.0
+        ],
+        "dplr-1": [
+          2.047874,
+          0.2126809,
+          0.0
+        ],
+        "dplr-2": [
+          3.072022,
+          0.2126811,
+          0.0
+        ],
+        "dplr-3": [
+          5.120103,
+          0.2126816,
+          0.0
+        ],
+        "dqfr-1": [
+          2.048001,
+          0.210354,
+          0.0
+        ],
+        "dqfr-2": [
+          3.072004,
+          0.210354,
+          0.0
+        ],
+        "dqfr-3": [
+          5.119995,
+          0.2103541,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 12,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 20.48,
+        "duct-1": 16.38446,
+        "duct-2": 10.2404,
+        "dplr-1": 16.38449,
+        "dplr-2": 10.24042,
+        "dqfr-1": 16.384,
+        "dqfr-2": 10.23999,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          20.48,
+          0.2996366,
+          0.0
+        ],
+        "duct-1": [
+          4.095541,
+          0.2996195,
+          0.0
+        ],
+        "duct-2": [
+          6.144055,
+          0.2996195,
+          0.0
+        ],
+        "duct-3": [
+          10.2404,
+          0.2996195,
+          0.0
+        ],
+        "dplr-1": [
+          4.095509,
+          0.3059191,
+          0.0
+        ],
+        "dplr-2": [
+          6.144068,
+          0.3059202,
+          0.0
+        ],
+        "dplr-3": [
+          10.24042,
+          0.3059213,
+          0.0
+        ],
+        "dqfr-1": [
+          4.096001,
+          0.2988996,
+          0.0
+        ],
+        "dqfr-2": [
+          6.144009,
+          0.2988996,
+          0.0
+        ],
+        "dqfr-3": [
+          10.23999,
+          0.2988997,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 13,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "source": 40.96,
+        "duct-1": 32.76984,
+        "duct-2": 20.48161,
+        "dplr-1": 32.76994,
+        "dplr-2": 20.4817,
+        "dqfr-1": 32.768,
+        "dqfr-2": 20.47998,
+        "sink": 0.0
+      },
+      "links": {
+        "duct-0": [
+          40.96,
+          0.4256167,
+          0.0
+        ],
+        "duct-1": [
+          8.190163,
+          0.4255684,
+          0.0
+        ],
+        "duct-2": [
+          12.28822,
+          0.4255684,
+          0.0
+        ],
+        "duct-3": [
+          20.48161,
+          0.4255684,
+          0.0
+        ],
+        "dplr-1": [
+          8.190062,
+          0.4400412,
+          0.0
+        ],
+        "dplr-2": [
+          12.28823,
+          0.4400448,
+          0.0
+        ],
+        "dplr-3": [
+          20.4817,
+          0.4400476,
+          0.0
+        ],
+        "dqfr-1": [
+          8.192002,
+          0.4241278,
+          0.0
+        ],
+        "dqfr-2": [
+          12.28802,
+          0.4241278,
+          0.0
+        ],
+        "dqfr-3": [
+          20.47998,
+          0.4241279,
+          0.0
+        ]
+      }
+    }
+  ],
+  "tolerances": {
+    "relative": 5e-05,
+    "pressure_absolute": 5e-07,
+    "flow_absolute": 1e-06,
+    "mass_balance_absolute": 1e-05
+  }
+}

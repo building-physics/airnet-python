@@ -49,6 +49,20 @@ def test_plr_one_way_return_contract(pressure):
     assert derivative0 > 0.0
 
 
+def test_plr_zero_pressure_jacobian_uses_first_node_properties():
+    element = Afe_Plr(lam=0.01)
+    link = SimpleNamespace(
+        node0=make_node(density=1.2, viscosity=1.8e-5),
+        node1=make_node(density=0.9, viscosity=2.0e-5),
+        multiplier=1.0,
+    )
+
+    _, flow0, _, derivative0, _ = element.calculate(link, 0.0)
+
+    assert flow0 == 0.0
+    assert derivative0 == pytest.approx(element.lam * link.node0.dvisc)
+
+
 @pytest.mark.parametrize(
     ('pressure', 'upwind_node'),
     [(1.5, 0), (-1.5, 1), (0.0, 1)],

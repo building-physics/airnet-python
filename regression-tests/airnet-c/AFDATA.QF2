@@ -1,0 +1,27 @@
+/*subfile:  afdata.qf2  ******************************************************/
+/
+title  quadratic flow test #2 input file - QFR & PLR crack models
+
+node   node-1    c   0.0   20.0   50.0
+node   node-2    c   0.0   20.0    0.0
+
+element orfc-2mx2mm plr  1.15199e-07 1.15199e-07 0.0033941 0.5 orifice - 2m x 2mm  c=.6 Re=100
+element pcrk-2mx2mm plr  2.57919e-07 2.57919e-07 0.000861923 0.68394 crack - 2m x 2mm  Re=100
+element qcrk-2mx2mmx1 qfr  11.3995 90843 crack - 2m x 2mm  z=1cm  2bends
+element qcrk-2mx2mmx5 qfr  56.9975 90843 crack - 2m x 2mm  z=5cm  2bends
+element orfc-10mx1mm plr 1.43999e-07 1.43999e-07 0.00848526 0.5 orifice - 10m x 1mm  c=.6  Re=100
+element pcrk-10mx1mm plr 1.6544e-07 1.6544e-07 0.00246301 0.803265 crack - 10m x 1mm  Re=100
+element qcrk-10mx1mmx1 qfr 18.2392 14534.9 crack - 10m x 1mm  z=1cm  2bends
+element qcrk-10mx1mmx5 qfr 91.196 14534.9 crack - 10m x 1mm  z=5cm  2bends
+
+link   link-1   node-1   0.0   node-2   0.0   orfc-2mx2mm      null
+link   link-2   node-1   0.0   node-2   0.0   pcrk-2mx2mm      null
+link   link-3   node-1   0.0   node-2   0.0   qcrk-2mx2mmx1    null
+link   link-4   node-1   0.0   node-2   0.0   qcrk-2mx2mmx5    null
+link   link-5   node-1   0.0   node-2   0.0   orfc-10mx1mm     null
+link   link-6   node-1   0.0   node-2   0.0   pcrk-10mx1mm     null
+link   link-7   node-1   0.0   node-2   0.0   qcrk-10mx1mmx1   null
+link   link-8   node-1   0.0   node-2   0.0   qcrk-10mx1mmx5   null
+
+*********
+

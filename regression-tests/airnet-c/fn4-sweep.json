@@ -1,0 +1,178 @@
+{
+  "case": "FN4",
+  "network": "AFDATA.FN1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.FN4",
+  "runs": [
+    {
+      "source_run": 1,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 6,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": 660.3155,
+        "node-3": 0.0
+      },
+      "links": {
+        "link-1": [
+          -660.3155,
+          3.157926,
+          0.0
+        ],
+        "link-2": [
+          660.3155,
+          3.157875,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 2,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 8,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": 701.5972,
+        "node-3": 200.0
+      },
+      "links": {
+        "link-1": [
+          -701.5973,
+          2.761283,
+          0.0
+        ],
+        "link-2": [
+          501.5973,
+          2.76126,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 3,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 20,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": 781.1073,
+        "node-3": 800.0
+      },
+      "links": {
+        "link-1": [
+          -781.1074,
+          -0.536257,
+          0.0
+        ],
+        "link-2": [
+          -18.89277,
+          -0.5362592,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 4,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 5,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": 609.7236,
+        "node-3": -200.0
+      },
+      "links": {
+        "link-1": [
+          -609.7236,
+          3.510318,
+          0.0
+        ],
+        "link-2": [
+          809.7236,
+          3.510388,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 5,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 4,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": 431.355,
+        "node-3": -800.0
+      },
+      "links": {
+        "link-1": [
+          -431.355,
+          4.325153,
+          0.0
+        ],
+        "link-2": [
+          1231.355,
+          4.325274,
+          0.0
+        ]
+      }
+    }
+  ],
+  "tolerances": {
+    "relative": 5e-05,
+    "pressure_absolute": 0.04,
+    "flow_absolute": 0.0005,
+    "mass_balance_absolute": 0.0004
+  }
+}

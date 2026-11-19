@@ -1,0 +1,530 @@
+/*subfile:  afdata.16f  ******************************************************/
+/
+title  16 floor building using cracks for infiltration openings
+
+node NW1   v   1.5  20.         room NW, floor 1
+node NC1   v   1.5  20.         room NC, floor 1
+node NE1   v   1.5  20.         room NE, floor 1
+node SW1   v   1.5  20.         room SW, floor 1
+node SC1   v   1.5  20.         room SC, floor 1
+node SE1   v   1.5  20.         room SE, floor 1
+node HL1   v   1.5  20.         room HL, floor 1
+node ST1   v   1.5  20.         room ST, floor 1
+node EL1   v   1.5  20.         room EL, floor 1
+node NW2   v   4.5  20.         room NW, floor 2
+node NC2   v   4.5  20.         room NC, floor 2
+node NE2   v   4.5  20.         room NE, floor 2
+node SW2   v   4.5  20.         room SW, floor 2
+node SC2   v   4.5  20.         room SC, floor 2
+node SE2   v   4.5  20.         room SE, floor 2
+node HL2   v   4.5  20.         room HL, floor 2
+node ST2   v   4.5  20.         room ST, floor 2
+node EL2   v   4.5  20.         room EL, floor 2
+node NW3   v   7.5  20.         room NW, floor 3
+node NC3   v   7.5  20.         room NC, floor 3
+node NE3   v   7.5  20.         room NE, floor 3
+node SW3   v   7.5  20.         room SW, floor 3
+node SC3   v   7.5  20.         room SC, floor 3
+node SE3   v   7.5  20.         room SE, floor 3
+node HL3   v   7.5  20.         room HL, floor 3
+node ST3   v   7.5  20.         room ST, floor 3
+node EL3   v   7.5  20.         room EL, floor 3
+node NW4   v  10.5  20.         room NW, floor 4
+node NC4   v  10.5  20.         room NC, floor 4
+node NE4   v  10.5  20.         room NE, floor 4
+node SW4   v  10.5  20.         room SW, floor 4
+node SC4   v  10.5  20.         room SC, floor 4
+node SE4   v  10.5  20.         room SE, floor 4
+node HL4   v  10.5  20.         room HL, floor 4
+node ST4   v  10.5  20.         room ST, floor 4
+node EL4   v  10.5  20.         room EL, floor 4
+node NW5   v  13.5  20.         room NW, floor 5
+node NC5   v  13.5  20.         room NC, floor 5
+node NE5   v  13.5  20.         room NE, floor 5
+node SW5   v  13.5  20.         room SW, floor 5
+node SC5   v  13.5  20.         room SC, floor 5
+node SE5   v  13.5  20.         room SE, floor 5
+node HL5   v  13.5  20.         room HL, floor 5
+node ST5   v  13.5  20.         room ST, floor 5
+node EL5   v  13.5  20.         room EL, floor 5
+node NW6   v  16.5  20.         room NW, floor 6
+node NC6   v  16.5  20.         room NC, floor 6
+node NE6   v  16.5  20.         room NE, floor 6
+node SW6   v  16.5  20.         room SW, floor 6
+node SC6   v  16.5  20.         room SC, floor 6
+node SE6   v  16.5  20.         room SE, floor 6
+node HL6   v  16.5  20.         room HL, floor 6
+node ST6   v  16.5  20.         room ST, floor 6
+node EL6   v  16.5  20.         room EL, floor 6
+node NW7   v  19.5  20.         room NW, floor 7
+node NC7   v  19.5  20.         room NC, floor 7
+node NE7   v  19.5  20.         room NE, floor 7
+node SW7   v  19.5  20.         room SW, floor 7
+node SC7   v  19.5  20.         room SC, floor 7
+node SE7   v  19.5  20.         room SE, floor 7
+node HL7   v  19.5  20.         room HL, floor 7
+node ST7   v  19.5  20.         room ST, floor 7
+node EL7   v  19.5  20.         room EL, floor 7
+node NW8   v  22.5  20.         room NW, floor 8
+node NC8   v  22.5  20.         room NC, floor 8
+node NE8   v  22.5  20.         room NE, floor 8
+node SW8   v  22.5  20.         room SW, floor 8
+node SC8   v  22.5  20.         room SC, floor 8
+node SE8   v  22.5  20.         room SE, floor 8
+node HL8   v  22.5  20.         room HL, floor 8
+node ST8   v  22.5  20.         room ST, floor 8
+node EL8   v  22.5  20.         room EL, floor 8
+node NW9   v  25.5  20.         room NW, floor 9
+node NC9   v  25.5  20.         room NC, floor 9
+node NE9   v  25.5  20.         room NE, floor 9
+node SW9   v  25.5  20.         room SW, floor 9
+node SC9   v  25.5  20.         room SC, floor 9
+node SE9   v  25.5  20.         room SE, floor 9
+node HL9   v  25.5  20.         room HL, floor 9
+node ST9   v  25.5  20.         room ST, floor 9
+node EL9   v  25.5  20.         room EL, floor 9
+node NW10  v  28.5  20.         room NW, floor 10
+node NC10  v  28.5  20.         room NC, floor 10
+node NE10  v  28.5  20.         room NE, floor 10
+node SW10  v  28.5  20.         room SW, floor 10
+node SC10  v  28.5  20.         room SC, floor 10
+node SE10  v  28.5  20.         room SE, floor 10
+node HL10  v  28.5  20.         room HL, floor 10
+node ST10  v  28.5  20.         room ST, floor 10
+node EL10  v  28.5  20.         room EL, floor 10
+node NW11  v  31.5  20.         room NW, floor 11
+node NC11  v  31.5  20.         room NC, floor 11
+node NE11  v  31.5  20.         room NE, floor 11
+node SW11  v  31.5  20.         room SW, floor 11
+node SC11  v  31.5  20.         room SC, floor 11
+node SE11  v  31.5  20.         room SE, floor 11
+node HL11  v  31.5  20.         room HL, floor 11
+node ST11  v  31.5  20.         room ST, floor 11
+node EL11  v  31.5  20.         room EL, floor 11
+node NW12  v  34.5  20.         room NW, floor 12
+node NC12  v  34.5  20.         room NC, floor 12
+node NE12  v  34.5  20.         room NE, floor 12
+node SW12  v  34.5  20.         room SW, floor 12
+node SC12  v  34.5  20.         room SC, floor 12
+node SE12  v  34.5  20.         room SE, floor 12
+node HL12  v  34.5  20.         room HL, floor 12
+node ST12  v  34.5  20.         room ST, floor 12
+node EL12  v  34.5  20.         room EL, floor 12
+node NW13  v  37.5  20.         room NW, floor 13
+node NC13  v  37.5  20.         room NC, floor 13
+node NE13  v  37.5  20.         room NE, floor 13
+node SW13  v  37.5  20.         room SW, floor 13
+node SC13  v  37.5  20.         room SC, floor 13
+node SE13  v  37.5  20.         room SE, floor 13
+node HL13  v  37.5  20.         room HL, floor 13
+node ST13  v  37.5  20.         room ST, floor 13
+node EL13  v  37.5  20.         room EL, floor 13
+node NW14  v  40.5  20.         room NW, floor 14
+node NC14  v  40.5  20.         room NC, floor 14
+node NE14  v  40.5  20.         room NE, floor 14
+node SW14  v  40.5  20.         room SW, floor 14
+node SC14  v  40.5  20.         room SC, floor 14
+node SE14  v  40.5  20.         room SE, floor 14
+node HL14  v  40.5  20.         room HL, floor 14
+node ST14  v  40.5  20.         room ST, floor 14
+node EL14  v  40.5  20.         room EL, floor 14
+node NW15  v  43.5  20.         room NW, floor 15
+node NC15  v  43.5  20.         room NC, floor 15
+node NE15  v  43.5  20.         room NE, floor 15
+node SW15  v  43.5  20.         room SW, floor 15
+node SC15  v  43.5  20.         room SC, floor 15
+node SE15  v  43.5  20.         room SE, floor 15
+node HL15  v  43.5  20.         room HL, floor 15
+node ST15  v  43.5  20.         room ST, floor 15
+node EL15  v  43.5  20.         room EL, floor 15
+node NW16  v  46.5  20.         room NW, floor 16
+node NC16  v  46.5  20.         room NC, floor 16
+node NE16  v  46.5  20.         room NE, floor 16
+node SW16  v  46.5  20.         room SW, floor 16
+node SC16  v  46.5  20.         room SC, floor 16
+node SE16  v  46.5  20.         room SE, floor 16
+node HL16  v  46.5  20.         room HL, floor 16
+node ST16  v  46.5  20.         room ST, floor 16
+node EL16  v  46.5  20.         room EL, floor 16
+node AMB   a  0.0   00.  0.0    ambient
+
+element inf-crk plr 1.69e-08  1.69e-08  0.00183847 0.5 room infiltration cracks - 0.002 m^2
+element inf-str plr 8.45e-11  8.45e-11  9.1924e-05 0.5 stair cracks - .0001 m^2
+element inf-elv plr 4.225e-09 4.225e-09 .000919236 0.5 elevator cracks - 0.001 m^2
+element flr-flr plr 2.535e-06 2.535e-06 0.0275771  0.5 floor to floor - 0.03 m^2
+element str-dor plr 2.535e-06 2.535e-06 0.0275771  0.5 closed stair door - 0.03 m^2
+element elv-dor plr 1.014e-05 1.014e-05 0.0551542  0.5 closed elevator door - 0.06 m^2
+element hal-dor plr 0.0169    0.0169    1.83847    0.5 hallway door - 2.0 m^2
+element str-str plr 0.0316873 0.0316873 2.29809    0.5 stairway resistance - 2.5 m^2
+element elv-elv plr 0.0675997 0.0675997 3.67695    0.5 elev shaft resistance 4.0 m^2
+
+link f01-i1a  AMB   1.5  NW1   0.0  inf-crk  west   1.2   1st floor cracks
+link f01-i1b  AMB   1.5  NW1   0.0  inf-crk  north  1.2
+link f01-i2a  AMB   1.5  NC1   0.0  inf-crk  north  1.2
+link f01-i3a  AMB   1.5  NE1   0.0  inf-crk  north  1.2
+link f01-i3b  AMB   1.5  NE1   0.0  inf-crk  east   1.2
+link f01-i4a  AMB   1.5  SW1   0.0  inf-crk  west   1.2
+link f01-i4b  AMB   1.5  SW1   0.0  inf-crk  south  1.2
+link f01-i5a  AMB   1.5  SC1   0.0  inf-crk  south  1.2
+link f01-i6a  AMB   1.5  SE1   0.0  inf-crk  south  1.2
+link f01-i6b  AMB   1.5  SE1   0.0  inf-crk  east   1.2
+link f01-ist  AMB   1.5  ST1   0.0  inf-str  west   1.2
+link f01-iel  AMB   1.5  EL1   0.0  inf-elv  east   1.2
+link f02-i1a  AMB   4.5  NW2   0.0  inf-crk  west   1.2   2nd floor cracks
+link f02-i1b  AMB   4.5  NW2   0.0  inf-crk  north  1.2
+link f02-i2a  AMB   4.5  NC2   0.0  inf-crk  north  1.2
+link f02-i3a  AMB   4.5  NE2   0.0  inf-crk  north  1.2
+link f02-i3b  AMB   4.5  NE2   0.0  inf-crk  east   1.2
+link f02-i4a  AMB   4.5  SW2   0.0  inf-crk  west   1.2
+link f02-i4b  AMB   4.5  SW2   0.0  inf-crk  south  1.2
+link f02-i5a  AMB   4.5  SC2   0.0  inf-crk  south  1.2
+link f02-i6a  AMB   4.5  SE2   0.0  inf-crk  south  1.2
+link f02-i6b  AMB   4.5  SE2   0.0  inf-crk  east   1.2
+link f02-ist  AMB   4.5  ST2   0.0  inf-str  west   1.2
+link f02-iel  AMB   4.5  EL2   0.0  inf-elv  east   1.2
+link f03-i1a  AMB   7.5  NW3   0.0  inf-crk  west   1.2   3rd floor cracks
+link f03-i1b  AMB   7.5  NW3   0.0  inf-crk  north  1.2
+link f03-i2a  AMB   7.5  NC3   0.0  inf-crk  north  1.2
+link f03-i3a  AMB   7.5  NE3   0.0  inf-crk  north  1.2
+link f03-i3b  AMB   7.5  NE3   0.0  inf-crk  east   1.2
+link f03-i4a  AMB   7.5  SW3   0.0  inf-crk  west   1.2
+link f03-i4b  AMB   7.5  SW3   0.0  inf-crk  south  1.2
+link f03-i5a  AMB   7.5  SC3   0.0  inf-crk  south  1.2
+link f03-i6a  AMB   7.5  SE3   0.0  inf-crk  south  1.2
+link f03-i6b  AMB   7.5  SE3   0.0  inf-crk  east   1.2
+link f03-ist  AMB   7.5  ST3   0.0  inf-str  west   1.2
+link f03-iel  AMB   7.5  EL3   0.0  inf-elv  east   1.2
+link f04-i1a  AMB  10.5  NW4   0.0  inf-crk  west   1.2   4th floor cracks
+link f04-i1b  AMB  10.5  NW4   0.0  inf-crk  north  1.2
+link f04-i2a  AMB  10.5  NC4   0.0  inf-crk  north  1.2
+link f04-i3a  AMB  10.5  NE4   0.0  inf-crk  north  1.2
+link f04-i3b  AMB  10.5  NE4   0.0  inf-crk  east   1.2
+link f04-i4a  AMB  10.5  SW4   0.0  inf-crk  west   1.2
+link f04-i4b  AMB  10.5  SW4   0.0  inf-crk  south  1.2
+link f04-i5a  AMB  10.5  SC4   0.0  inf-crk  south  1.2
+link f04-i6a  AMB  10.5  SE4   0.0  inf-crk  south  1.2
+link f04-i6b  AMB  10.5  SE4   0.0  inf-crk  east   1.2
+link f04-ist  AMB  10.5  ST4   0.0  inf-str  west   1.2
+link f04-iel  AMB  10.5  EL4   0.0  inf-elv  east   1.2
+link f05-i1a  AMB  13.5  NW5   0.0  inf-crk  west   1.2   5th floor cracks
+link f05-i1b  AMB  13.5  NW5   0.0  inf-crk  north  1.2
+link f05-i2a  AMB  13.5  NC5   0.0  inf-crk  north  1.2
+link f05-i3a  AMB  13.5  NE5   0.0  inf-crk  north  1.2
+link f05-i3b  AMB  13.5  NE5   0.0  inf-crk  east   1.2
+link f05-i4a  AMB  13.5  SW5   0.0  inf-crk  west   1.2
+link f05-i4b  AMB  13.5  SW5   0.0  inf-crk  south  1.2
+link f05-i5a  AMB  13.5  SC5   0.0  inf-crk  south  1.2
+link f05-i6a  AMB  13.5  SE5   0.0  inf-crk  south  1.2
+link f05-i6b  AMB  13.5  SE5   0.0  inf-crk  east   1.2
+link f05-ist  AMB  13.5  ST5   0.0  inf-str  west   1.2
+link f05-iel  AMB  13.5  EL5   0.0  inf-elv  east   1.2
+link f06-i1a  AMB  16.5  NW6   0.0  inf-crk  west   1.2   6th floor cracks
+link f06-i1b  AMB  16.5  NW6   0.0  inf-crk  north  1.2
+link f06-i2a  AMB  16.5  NC6   0.0  inf-crk  north  1.2
+link f06-i3a  AMB  16.5  NE6   0.0  inf-crk  north  1.2
+link f06-i3b  AMB  16.5  NE6   0.0  inf-crk  east   1.2
+link f06-i4a  AMB  16.5  SW6   0.0  inf-crk  west   1.2
+link f06-i4b  AMB  16.5  SW6   0.0  inf-crk  south  1.2
+link f06-i5a  AMB  16.5  SC6   0.0  inf-crk  south  1.2
+link f06-i6a  AMB  16.5  SE6   0.0  inf-crk  south  1.2
+link f06-i6b  AMB  16.5  SE6   0.0  inf-crk  east   1.2
+link f06-ist  AMB  16.5  ST6   0.0  inf-str  west   1.2
+link f06-iel  AMB  16.5  EL6   0.0  inf-elv  east   1.2
+link f07-i1a  AMB  19.5  NW7   0.0  inf-crk  west   1.2   7th floor cracks
+link f07-i1b  AMB  19.5  NW7   0.0  inf-crk  north  1.2
+link f07-i2a  AMB  19.5  NC7   0.0  inf-crk  north  1.2
+link f07-i3a  AMB  19.5  NE7   0.0  inf-crk  north  1.2
+link f07-i3b  AMB  19.5  NE7   0.0  inf-crk  east   1.2
+link f07-i4a  AMB  19.5  SW7   0.0  inf-crk  west   1.2
+link f07-i4b  AMB  19.5  SW7   0.0  inf-crk  south  1.2
+link f07-i5a  AMB  19.5  SC7   0.0  inf-crk  south  1.2
+link f07-i6a  AMB  19.5  SE7   0.0  inf-crk  south  1.2
+link f07-i6b  AMB  19.5  SE7   0.0  inf-crk  east   1.2
+link f07-ist  AMB  19.5  ST7   0.0  inf-str  west   1.2
+link f07-iel  AMB  19.5  EL7   0.0  inf-elv  east   1.2
+link f08-i1a  AMB  22.5  NW8   0.0  inf-crk  west   1.2   8th floor cracks
+link f08-i1b  AMB  22.5  NW8   0.0  inf-crk  north  1.2
+link f08-i2a  AMB  22.5  NC8   0.0  inf-crk  north  1.2
+link f08-i3a  AMB  22.5  NE8   0.0  inf-crk  north  1.2
+link f08-i3b  AMB  22.5  NE8   0.0  inf-crk  east   1.2
+link f08-i4a  AMB  22.5  SW8   0.0  inf-crk  west   1.2
+link f08-i4b  AMB  22.5  SW8   0.0  inf-crk  south  1.2
+link f08-i5a  AMB  22.5  SC8   0.0  inf-crk  south  1.2
+link f08-i6a  AMB  22.5  SE8   0.0  inf-crk  south  1.2
+link f08-i6b  AMB  22.5  SE8   0.0  inf-crk  east   1.2
+link f08-ist  AMB  22.5  ST8   0.0  inf-str  west   1.2
+link f08-iel  AMB  22.5  EL8   0.0  inf-elv  east   1.2
+link f09-i1a  AMB  25.5  NW9   0.0  inf-crk  west   1.2   9th floor cracks
+link f09-i1b  AMB  25.5  NW9   0.0  inf-crk  north  1.2
+link f09-i2a  AMB  25.5  NC9   0.0  inf-crk  north  1.2
+link f09-i3a  AMB  25.5  NE9   0.0  inf-crk  north  1.2
+link f09-i3b  AMB  25.5  NE9   0.0  inf-crk  east   1.2
+link f09-i4a  AMB  25.5  SW9   0.0  inf-crk  west   1.2
+link f09-i4b  AMB  25.5  SW9   0.0  inf-crk  south  1.2
+link f09-i5a  AMB  25.5  SC9   0.0  inf-crk  south  1.2
+link f09-i6a  AMB  25.5  SE9   0.0  inf-crk  south  1.2
+link f09-i6b  AMB  25.5  SE9   0.0  inf-crk  east   1.2
+link f09-ist  AMB  25.5  ST9   0.0  inf-str  west   1.2
+link f09-iel  AMB  25.5  EL9   0.0  inf-elv  east   1.2
+link f10-i1a  AMB  28.5  NW10  0.0  inf-crk  west   1.2  10th floor cracks
+link f10-i1b  AMB  28.5  NW10  0.0  inf-crk  north  1.2
+link f10-i2a  AMB  28.5  NC10  0.0  inf-crk  north  1.2
+link f10-i3a  AMB  28.5  NE10  0.0  inf-crk  north  1.2
+link f10-i3b  AMB  28.5  NE10  0.0  inf-crk  east   1.2
+link f10-i4a  AMB  28.5  SW10  0.0  inf-crk  west   1.2
+link f10-i4b  AMB  28.5  SW10  0.0  inf-crk  south  1.2
+link f10-i5a  AMB  28.5  SC10  0.0  inf-crk  south  1.2
+link f10-i6a  AMB  28.5  SE10  0.0  inf-crk  south  1.2
+link f10-i6b  AMB  28.5  SE10  0.0  inf-crk  east   1.2
+link f10-ist  AMB  28.5  ST10  0.0  inf-str  west   1.2
+link f10-iel  AMB  28.5  EL10  0.0  inf-elv  east   1.2
+link f11-i1a  AMB  31.5  NW11  0.0  inf-crk  west   1.2  11th floor cracks
+link f11-i1b  AMB  31.5  NW11  0.0  inf-crk  north  1.2
+link f11-i2a  AMB  31.5  NC11  0.0  inf-crk  north  1.2
+link f11-i3a  AMB  31.5  NE11  0.0  inf-crk  north  1.2
+link f11-i3b  AMB  31.5  NE11  0.0  inf-crk  east   1.2
+link f11-i4a  AMB  31.5  SW11  0.0  inf-crk  west   1.2
+link f11-i4b  AMB  31.5  SW11  0.0  inf-crk  south  1.2
+link f11-i5a  AMB  31.5  SC11  0.0  inf-crk  south  1.2
+link f11-i6a  AMB  31.5  SE11  0.0  inf-crk  south  1.2
+link f11-i6b  AMB  31.5  SE11  0.0  inf-crk  east   1.2
+link f11-ist  AMB  31.5  ST11  0.0  inf-str  west   1.2
+link f11-iel  AMB  31.5  EL11  0.0  inf-elv  east   1.2
+link f12-i1a  AMB  34.5  NW12  0.0  inf-crk  west   1.2  12th floor cracks
+link f12-i1b  AMB  34.5  NW12  0.0  inf-crk  north  1.2
+link f12-i2a  AMB  34.5  NC12  0.0  inf-crk  north  1.2
+link f12-i3a  AMB  34.5  NE12  0.0  inf-crk  north  1.2
+link f12-i3b  AMB  34.5  NE12  0.0  inf-crk  east   1.2
+link f12-i4a  AMB  34.5  SW12  0.0  inf-crk  west   1.2
+link f12-i4b  AMB  34.5  SW12  0.0  inf-crk  south  1.2
+link f12-i5a  AMB  34.5  SC12  0.0  inf-crk  south  1.2
+link f12-i6a  AMB  34.5  SE12  0.0  inf-crk  south  1.2
+link f12-i6b  AMB  34.5  SE12  0.0  inf-crk  east   1.2
+link f12-ist  AMB  34.5  ST12  0.0  inf-str  west   1.2
+link f12-iel  AMB  34.5  EL12  0.0  inf-elv  east   1.2
+link f13-i1a  AMB  37.5  NW13  0.0  inf-crk  west   1.2  13th floor cracks
+link f13-i1b  AMB  37.5  NW13  0.0  inf-crk  north  1.2
+link f13-i2a  AMB  37.5  NC13  0.0  inf-crk  north  1.2
+link f13-i3a  AMB  37.5  NE13  0.0  inf-crk  north  1.2
+link f13-i3b  AMB  37.5  NE13  0.0  inf-crk  east   1.2
+link f13-i4a  AMB  37.5  SW13  0.0  inf-crk  west   1.2
+link f13-i4b  AMB  37.5  SW13  0.0  inf-crk  south  1.2
+link f13-i5a  AMB  37.5  SC13  0.0  inf-crk  south  1.2
+link f13-i6a  AMB  37.5  SE13  0.0  inf-crk  south  1.2
+link f13-i6b  AMB  37.5  SE13  0.0  inf-crk  east   1.2
+link f13-ist  AMB  37.5  ST13  0.0  inf-str  west   1.2
+link f13-iel  AMB  37.5  EL13  0.0  inf-elv  east   1.2
+link f14-i1a  AMB  40.5  NW14  0.0  inf-crk  west   1.2  14th floor cracks
+link f14-i1b  AMB  40.5  NW14  0.0  inf-crk  north  1.2
+link f14-i2a  AMB  40.5  NC14  0.0  inf-crk  north  1.2
+link f14-i3a  AMB  40.5  NE14  0.0  inf-crk  north  1.2
+link f14-i3b  AMB  40.5  NE14  0.0  inf-crk  east   1.2
+link f14-i4a  AMB  40.5  SW14  0.0  inf-crk  west   1.2
+link f14-i4b  AMB  40.5  SW14  0.0  inf-crk  south  1.2
+link f14-i5a  AMB  40.5  SC14  0.0  inf-crk  south  1.2
+link f14-i6a  AMB  40.5  SE14  0.0  inf-crk  south  1.2
+link f14-i6b  AMB  40.5  SE14  0.0  inf-crk  east   1.2
+link f14-ist  AMB  40.5  ST14  0.0  inf-str  west   1.2
+link f14-iel  AMB  40.5  EL14  0.0  inf-elv  east   1.2
+link f15-i1a  AMB  43.5  NW15  0.0  inf-crk  west   1.2  15th floor cracks
+link f15-i1b  AMB  43.5  NW15  0.0  inf-crk  north  1.2
+link f15-i2a  AMB  43.5  NC15  0.0  inf-crk  north  1.2
+link f15-i3a  AMB  43.5  NE15  0.0  inf-crk  north  1.2
+link f15-i3b  AMB  43.5  NE15  0.0  inf-crk  east   1.2
+link f15-i4a  AMB  43.5  SW15  0.0  inf-crk  west   1.2
+link f15-i4b  AMB  43.5  SW15  0.0  inf-crk  south  1.2
+link f15-i5a  AMB  43.5  SC15  0.0  inf-crk  south  1.2
+link f15-i6a  AMB  43.5  SE15  0.0  inf-crk  south  1.2
+link f15-i6b  AMB  43.5  SE15  0.0  inf-crk  east   1.2
+link f15-ist  AMB  43.5  ST15  0.0  inf-str  west   1.2
+link f15-iel  AMB  43.5  EL15  0.0  inf-elv  east   1.2
+link f16-i1a  AMB  46.5  NW16  0.0  inf-crk  west   1.2  16th floor cracks
+link f16-i1b  AMB  46.5  NW16  0.0  inf-crk  north  1.2
+link f16-i2a  AMB  46.5  NC16  0.0  inf-crk  north  1.2
+link f16-i3a  AMB  46.5  NE16  0.0  inf-crk  north  1.2
+link f16-i3b  AMB  46.5  NE16  0.0  inf-crk  east   1.2
+link f16-i4a  AMB  46.5  SW16  0.0  inf-crk  west   1.2
+link f16-i4b  AMB  46.5  SW16  0.0  inf-crk  south  1.2
+link f16-i5a  AMB  46.5  SC16  0.0  inf-crk  south  1.2
+link f16-i6a  AMB  46.5  SE16  0.0  inf-crk  south  1.2
+link f16-i6b  AMB  46.5  SE16  0.0  inf-crk  east   1.2
+link f16-ist  AMB  46.5  ST16  0.0  inf-str  west   1.2
+link f16-iel  AMB  46.5  EL16  0.0  inf-elv  east   1.2
+
+link f01-dnw  NW1   0.0  HL1   0.0  hal-dor  null   1st floor doorways
+link f01-dnc  NC1   0.0  HL1   0.0  hal-dor  null
+link f01-dne  NE1   0.0  HL1   0.0  hal-dor  null
+link f01-dsw  SW1   0.0  HL1   0.0  hal-dor  null
+link f01-dsc  SC1   0.0  HL1   0.0  hal-dor  null
+link f01-sec  SE1   0.0  HL1   0.0  hal-dor  null
+link f01-stc  ST1   0.0  HL1   0.0  str-dor  null
+link f01-elc  EL1   0.0  HL1   0.0  elv-dor  null
+link f02-dnw  NW2   0.0  HL2   0.0  hal-dor  null   2nd floor doorways
+link f02-dnc  NC2   0.0  HL2   0.0  hal-dor  null
+link f02-dne  NE2   0.0  HL2   0.0  hal-dor  null
+link f02-dsw  SW2   0.0  HL2   0.0  hal-dor  null
+link f02-dsc  SC2   0.0  HL2   0.0  hal-dor  null
+link f02-sec  SE2   0.0  HL2   0.0  hal-dor  null
+link f02-stc  ST2   0.0  HL2   0.0  str-dor  null
+link f02-elc  EL2   0.0  HL2   0.0  elv-dor  null
+link f03-dnw  NW3   0.0  HL3   0.0  hal-dor  null   3rd floor doorways
+link f03-dnc  NC3   0.0  HL3   0.0  hal-dor  null
+link f03-dne  NE3   0.0  HL3   0.0  hal-dor  null
+link f03-dsw  SW3   0.0  HL3   0.0  hal-dor  null
+link f03-dsc  SC3   0.0  HL3   0.0  hal-dor  null
+link f03-sec  SE3   0.0  HL3   0.0  hal-dor  null
+link f03-stc  ST3   0.0  HL3   0.0  str-dor  null
+link f03-elc  EL3   0.0  HL3   0.0  elv-dor  null
+link f04-dnw  NW4   0.0  HL4   0.0  hal-dor  null   4th floor doorways
+link f04-dnc  NC4   0.0  HL4   0.0  hal-dor  null
+link f04-dne  NE4   0.0  HL4   0.0  hal-dor  null
+link f04-dsw  SW4   0.0  HL4   0.0  hal-dor  null
+link f04-dsc  SC4   0.0  HL4   0.0  hal-dor  null
+link f04-sec  SE4   0.0  HL4   0.0  hal-dor  null
+link f04-stc  ST4   0.0  HL4   0.0  str-dor  null
+link f04-elc  EL4   0.0  HL4   0.0  elv-dor  null
+link f05-dnw  NW5   0.0  HL5   0.0  hal-dor  null   5th floor doorways
+link f05-dnc  NC5   0.0  HL5   0.0  hal-dor  null
+link f05-dne  NE5   0.0  HL5   0.0  hal-dor  null
+link f05-dsw  SW5   0.0  HL5   0.0  hal-dor  null
+link f05-dsc  SC5   0.0  HL5   0.0  hal-dor  null
+link f05-sec  SE5   0.0  HL5   0.0  hal-dor  null
+link f05-stc  ST5   0.0  HL5   0.0  str-dor  null
+link f05-elc  EL5   0.0  HL5   0.0  elv-dor  null
+link f06-dnw  NW6   0.0  HL6   0.0  hal-dor  null   6th floor doorways
+link f06-dnc  NC6   0.0  HL6   0.0  hal-dor  null
+link f06-dne  NE6   0.0  HL6   0.0  hal-dor  null
+link f06-dsw  SW6   0.0  HL6   0.0  hal-dor  null
+link f06-dsc  SC6   0.0  HL6   0.0  hal-dor  null
+link f06-sec  SE6   0.0  HL6   0.0  hal-dor  null
+link f06-stc  ST6   0.0  HL6   0.0  str-dor  null
+link f06-elc  EL6   0.0  HL6   0.0  elv-dor  null
+link f07-dnw  NW7   0.0  HL7   0.0  hal-dor  null   7th floor doorways
+link f07-dnc  NC7   0.0  HL7   0.0  hal-dor  null
+link f07-dne  NE7   0.0  HL7   0.0  hal-dor  null
+link f07-dsw  SW7   0.0  HL7   0.0  hal-dor  null
+link f07-dsc  SC7   0.0  HL7   0.0  hal-dor  null
+link f07-sec  SE7   0.0  HL7   0.0  hal-dor  null
+link f07-stc  ST7   0.0  HL7   0.0  str-dor  null
+link f07-elc  EL7   0.0  HL7   0.0  elv-dor  null
+link f08-dnw  NW8   0.0  HL8   0.0  hal-dor  null   8th floor doorways
+link f08-dnc  NC8   0.0  HL8   0.0  hal-dor  null
+link f08-dne  NE8   0.0  HL8   0.0  hal-dor  null
+link f08-dsw  SW8   0.0  HL8   0.0  hal-dor  null
+link f08-dsc  SC8   0.0  HL8   0.0  hal-dor  null
+link f08-sec  SE8   0.0  HL8   0.0  hal-dor  null
+link f08-stc  ST8   0.0  HL8   0.0  str-dor  null
+link f08-elc  EL8   0.0  HL8   0.0  elv-dor  null
+link f09-dnw  NW9   0.0  HL9   0.0  hal-dor  null   9th floor doorways
+link f09-dnc  NC9   0.0  HL9   0.0  hal-dor  null
+link f09-dne  NE9   0.0  HL9   0.0  hal-dor  null
+link f09-dsw  SW9   0.0  HL9   0.0  hal-dor  null
+link f09-dsc  SC9   0.0  HL9   0.0  hal-dor  null
+link f09-sec  SE9   0.0  HL9   0.0  hal-dor  null
+link f09-stc  ST9   0.0  HL9   0.0  str-dor  null
+link f09-elc  EL9   0.0  HL9   0.0  elv-dor  null
+link f10-dnw  NW10  0.0  HL10  0.0  hal-dor  null  10th floor doorways
+link f10-dnc  NC10  0.0  HL10  0.0  hal-dor  null
+link f10-dne  NE10  0.0  HL10  0.0  hal-dor  null
+link f10-dsw  SW10  0.0  HL10  0.0  hal-dor  null
+link f10-dsc  SC10  0.0  HL10  0.0  hal-dor  null
+link f10-sec  SE10  0.0  HL10  0.0  hal-dor  null
+link f10-stc  ST10  0.0  HL10  0.0  str-dor  null
+link f10-elc  EL10  0.0  HL10  0.0  elv-dor  null
+link f11-dnw  NW11  0.0  HL11  0.0  hal-dor  null  11th floor doorways
+link f11-dnc  NC11  0.0  HL11  0.0  hal-dor  null
+link f11-dne  NE11  0.0  HL11  0.0  hal-dor  null
+link f11-dsw  SW11  0.0  HL11  0.0  hal-dor  null
+link f11-dsc  SC11  0.0  HL11  0.0  hal-dor  null
+link f11-sec  SE11  0.0  HL11  0.0  hal-dor  null
+link f11-stc  ST11  0.0  HL11  0.0  str-dor  null
+link f11-elc  EL11  0.0  HL11  0.0  elv-dor  null
+link f12-dnw  NW12  0.0  HL12  0.0  hal-dor  null  12th floor doorways
+link f12-dnc  NC12  0.0  HL12  0.0  hal-dor  null
+link f12-dne  NE12  0.0  HL12  0.0  hal-dor  null
+link f12-dsw  SW12  0.0  HL12  0.0  hal-dor  null
+link f12-dsc  SC12  0.0  HL12  0.0  hal-dor  null
+link f12-sec  SE12  0.0  HL12  0.0  hal-dor  null
+link f12-stc  ST12  0.0  HL12  0.0  str-dor  null
+link f12-elc  EL12  0.0  HL12  0.0  elv-dor  null
+link f13-dnw  NW13  0.0  HL13  0.0  hal-dor  null  13th floor doorways
+link f13-dnc  NC13  0.0  HL13  0.0  hal-dor  null
+link f13-dne  NE13  0.0  HL13  0.0  hal-dor  null
+link f13-dsw  SW13  0.0  HL13  0.0  hal-dor  null
+link f13-dsc  SC13  0.0  HL13  0.0  hal-dor  null
+link f13-sec  SE13  0.0  HL13  0.0  hal-dor  null
+link f13-stc  ST13  0.0  HL13  0.0  str-dor  null
+link f13-elc  EL13  0.0  HL13  0.0  elv-dor  null
+link f14-dnw  NW14  0.0  HL14  0.0  hal-dor  null  14th floor doorways
+link f14-dnc  NC14  0.0  HL14  0.0  hal-dor  null
+link f14-dne  NE14  0.0  HL14  0.0  hal-dor  null
+link f14-dsw  SW14  0.0  HL14  0.0  hal-dor  null
+link f14-dsc  SC14  0.0  HL14  0.0  hal-dor  null
+link f14-sec  SE14  0.0  HL14  0.0  hal-dor  null
+link f14-stc  ST14  0.0  HL14  0.0  str-dor  null
+link f14-elc  EL14  0.0  HL14  0.0  elv-dor  null
+link f15-dnw  NW15  0.0  HL15  0.0  hal-dor  null  15th floor doorways
+link f15-dnc  NC15  0.0  HL15  0.0  hal-dor  null
+link f15-dne  NE15  0.0  HL15  0.0  hal-dor  null
+link f15-dsw  SW15  0.0  HL15  0.0  hal-dor  null
+link f15-dsc  SC15  0.0  HL15  0.0  hal-dor  null
+link f15-sec  SE15  0.0  HL15  0.0  hal-dor  null
+link f15-stc  ST15  0.0  HL15  0.0  str-dor  null
+link f15-elc  EL15  0.0  HL15  0.0  elv-dor  null
+link f16-dnw  NW16  0.0  HL16  0.0  hal-dor  null  16th floor doorways
+link f16-dnc  NC16  0.0  HL16  0.0  hal-dor  null
+link f16-dne  NE16  0.0  HL16  0.0  hal-dor  null
+link f16-dsw  SW16  0.0  HL16  0.0  hal-dor  null
+link f16-dsc  SC16  0.0  HL16  0.0  hal-dor  null
+link f16-sec  SE16  0.0  HL16  0.0  hal-dor  null
+link f16-stc  ST16  0.0  HL16  0.0  str-dor  null
+link f16-elc  EL16  0.0  HL16  0.0  elv-dor  null
+
+link f-01-02  HL1   1.5  HL2  -1.5  flr-flr  null   interfloor connections
+link f-02-03  HL2   1.5  HL3  -1.5  flr-flr  null
+link f-03-04  HL3   1.5  HL4  -1.5  flr-flr  null
+link f-04-05  HL4   1.5  HL5  -1.5  flr-flr  null
+link f-05-06  HL5   1.5  HL6  -1.5  flr-flr  null
+link f-06-07  HL6   1.5  HL7  -1.5  flr-flr  null
+link f-07-08  HL7   1.5  HL8  -1.5  flr-flr  null
+link f-08-09  HL8   1.5  HL9  -1.5  flr-flr  null
+link f-09-10  HL9   1.5  HL10 -1.5  flr-flr  null
+link f-10-11  HL10  1.5  HL11 -1.5  flr-flr  null
+link f-11-12  HL11  1.5  HL12 -1.5  flr-flr  null
+link f-12-13  HL12  1.5  HL13 -1.5  flr-flr  null
+link f-13-14  HL13  1.5  HL14 -1.5  flr-flr  null
+link f-14-15  HL14  1.5  HL15 -1.5  flr-flr  null
+link f-15-16  HL15  1.5  HL16 -1.5  flr-flr  null
+link s-01-02  ST1   1.5  ST2  -1.5  str-str  null   stairwell connections
+link s-02-03  ST2   1.5  ST3  -1.5  str-str  null
+link s-03-04  ST3   1.5  ST4  -1.5  str-str  null
+link s-04-05  ST4   1.5  ST5  -1.5  str-str  null
+link s-05-06  ST5   1.5  ST6  -1.5  str-str  null
+link s-06-07  ST6   1.5  ST7  -1.5  str-str  null
+link s-07-08  ST7   1.5  ST8  -1.5  str-str  null
+link s-08-09  ST8   1.5  ST9  -1.5  str-str  null
+link s-09-10  ST9   1.5  ST10 -1.5  str-str  null
+link s-10-11  ST10  1.5  ST11 -1.5  str-str  null
+link s-11-12  ST11  1.5  ST12 -1.5  str-str  null
+link s-12-13  ST12  1.5  ST13 -1.5  str-str  null
+link s-13-14  ST13  1.5  ST14 -1.5  str-str  null
+link s-14-15  ST14  1.5  ST15 -1.5  str-str  null
+link s-15-16  ST15  1.5  ST16 -1.5  str-str  null
+link e-01-02  EL1   1.5  EL2  -1.5  elv-elv  null   elevator connections
+link e-02-03  EL2   1.5  EL3  -1.5  elv-elv  null
+link e-03-04  EL3   1.5  EL4  -1.5  elv-elv  null
+link e-04-05  EL4   1.5  EL5  -1.5  elv-elv  null
+link e-05-06  EL5   1.5  EL6  -1.5  elv-elv  null
+link e-06-07  EL6   1.5  EL7  -1.5  elv-elv  null
+link e-07-08  EL7   1.5  EL8  -1.5  elv-elv  null
+link e-08-09  EL8   1.5  EL9  -1.5  elv-elv  null
+link e-09-10  EL9   1.5  EL10 -1.5  elv-elv  null
+link e-10-11  EL10  1.5  EL11 -1.5  elv-elv  null
+link e-11-12  EL11  1.5  EL12 -1.5  elv-elv  null
+link e-12-13  EL12  1.5  EL13 -1.5  elv-elv  null
+link e-13-14  EL13  1.5  EL14 -1.5  elv-elv  null
+link e-14-15  EL14  1.5  EL15 -1.5  elv-elv  null
+link e-15-16  EL15  1.5  EL16 -1.5  elv-elv  null
+
+*********
+

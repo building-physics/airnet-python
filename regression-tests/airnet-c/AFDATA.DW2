@@ -1,0 +1,25 @@
+/*subfile:  afdata.dw2  ******************************************************/
+/
+title  duct test #2 input file
+
+node   node-1    c   0.0   20.0   40.0
+node   node-2    v   0.0   20.0
+node   node-3    v   0.0   20.0
+node   node-4    c   0.0   20.0    0.0
+
+element  duct-2x63  dwc  2.0   0.63  0.31172  0.00015   duct 2m x 63cm
+                         0.0   64.0  0.0      128.
+element  duct-3x63  dwc  3.0   0.63  0.31172  0.00015   duct 3m x 63cm
+                         0.0   64.0  0.0      128.
+element  duct-5x63  dwc  5.0   0.63  0.31172  0.00015   duct 5m x 63cm
+                         0.0   64.0  0.0      128.
+element  duct-10x63 dwc 10.0   0.63  0.31172  0.00015   duct 10m x 63cm
+                         0.0   64.0  0.0      128.
+
+link   link-1   node-1   0.0   node-2   0.0   duct-2x63   null
+link   link-2   node-2   0.0   node-3   0.0   duct-3x63   null
+link   link-3   node-3   0.0   node-4   0.0   duct-5x63   null
+link   link-4   node-1   0.0   node-4   0.0   duct-10x63  null
+
+*********
+

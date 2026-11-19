@@ -38,7 +38,8 @@ class Node:
         Flag determining the input temperature units. If True, the temperature is in Celcius, otherwise Kelvin.
     """
     def __init__(self, name:str|None=None, variable:bool=True, ht:float=0.0, temp:float=293.15,
-                 pres:float=0.0, index:int|None=None, input_c:bool=True):
+                 pres:float=0.0, index:int|None=None, input_c:bool=True,
+                 ambient:bool=False):
         self.name = name
         self.variable = variable
         self.height = ht
@@ -47,6 +48,7 @@ class Node:
             self.temperature += 273.15
         self.pressure = pres
         self.index = index
+        self.ambient = ambient
         self.density = 0.0
         self.viscosity = 0.0
         self.sqrt_density = 0.0
@@ -173,6 +175,7 @@ class Model:
         self.wind_speed = wind_speed
         self.wind_direction = wind_direction
         self._environmental_pressure_is_set = False
+        self._pressure_drop_node_pressures = None
         weather_values = (
             ambient_temperature,
             barometric_pressure,
@@ -231,15 +234,13 @@ class Model:
                 if name in self.nodes:
                     raise DuplicateNetworkName(f'Node "{name}" is defined more than once')
                 node_type = record.pop('type', 'c')
-                if node_type == 'a':
-                    raise UnsupportedNetworkFeature(
-                        f'Node "{name}" uses unsupported ambient-node behavior'
-                    )
-                if node_type not in {'c', 'v'}:
+                if node_type not in {'a', 'c', 'v'}:
                     raise BadNetwork(f'Node "{name}" has invalid type "{node_type}"')
+                if node_type == 'a':
+                    record['temp'] = ambient_temperature
                 try:
                     self.nodes[name] = node_object(
-                        variable=node_type == 'v', **record
+                        variable=node_type == 'v', ambient=node_type == 'a', **record
                     )
                 except (TypeError, ValueError) as error:
                     raise BadNetwork(f'Node "{name}" has invalid data: {error}') from error
@@ -599,8 +600,14 @@ class Model:
                     # off diagonal terms
                     self.A[link.node0.index, link.node1.index] -= derivative
                     self.A[link.node1.index, link.node0.index] -= derivative
+        preconditioner = self._linear_preconditioner('initialization')
         solution, info = scipy.sparse.linalg.cg(
-            self.A, self.x, rtol=1.0e-12, atol=0.0, maxiter=maxiter
+            self.A,
+            self.x,
+            rtol=1.0e-12,
+            atol=0.0,
+            maxiter=maxiter,
+            M=preconditioner,
         )
         if info != 0:
             raise InitializationError(info=info, max_iterations=maxiter)
@@ -614,8 +621,9 @@ class Model:
         for node in self.variable_nodes:
             node.pressure = self.x[node.index]
         # Update the flows
+        self._synchronize_pressure_drops()
         for link in self.links:
-            pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
+            pdrop = link.pdrop
             flow, derivative = link.element.linearize(
                 link, pdrop=pdrop, control=link.control
             )
@@ -653,6 +661,42 @@ class Model:
                 )
             link.pdrop = sp0 + sp1 + spx + wind_pressure
         self._environmental_pressure_is_set = True
+        self._pressure_drop_node_pressures = None
+
+    def _synchronize_pressure_drops(self):
+        previous = self._pressure_drop_node_pressures
+        if previous is None:
+            for link in self.links:
+                link.pdrop += link.node0.pressure - link.node1.pressure
+        else:
+            for link in self.links:
+                link.pdrop += (
+                    link.node0.pressure
+                    - previous[link.node0]
+                    - link.node1.pressure
+                    + previous[link.node1]
+                )
+        self._pressure_drop_node_pressures = {
+            node: node.pressure for node in self.nodes.values()
+        }
+
+    def _linear_preconditioner(self, phase):
+        diagonal = self.A.diagonal()
+        if diagonal.size == 0:
+            return None
+        if not bool(numpy.all(numpy.isfinite(diagonal))) or bool(
+            numpy.any(diagonal <= 0.0)
+        ):
+            raise NumericalSolverError(
+                f'{phase.capitalize()} matrix has a non-positive or non-finite '
+                'diagonal coefficient'
+            )
+        # Preserve the established numerical path for ordinary networks.
+        # Diagonal scaling is needed for stress cases such as 133, whose
+        # coefficient range spans more than thirteen orders of magnitude.
+        if diagonal.max() <= 1.0e6 * diagonal.min():
+            return None
+        return scipy.sparse.diags(1.0 / diagonal)
 
     def air_movement(self, maxiter:int=100, max_subiter:int=100,
                      tolerance:float=1.0e-8, status_function=devnull,
@@ -709,6 +753,7 @@ class Model:
 
         if not self._environmental_pressure_is_set:
             self.compute_pressure_drops()
+        self._synchronize_pressure_drops()
         status_function('iter | Max Resid|\n==== ===============')
         previous_relative_residual = 0.0
         for iter in range(1,maxiter+1):
@@ -716,7 +761,7 @@ class Model:
             self.x.fill(0.0)
             sum_abs_flow = numpy.zeros(self.size, dtype=numpy.double)
             for link in self.links:
-                pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
+                pdrop = link.pdrop
                 if link.node0.variable:
                     nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(
                         link, pdrop, control=link.control
@@ -783,14 +828,19 @@ class Model:
 
             if bool(numpy.all(converged)) and iter >= minimum_iterations:
                 status_function('%4d %15.9e < %e' % (iter, maxf, tolerance))
-                # Update the pressure drops, up until now only secondary terms present
-                for link in self.links:
-                    link.pdrop += link.node0.pressure - link.node1.pressure
                 return iter
 
             status_function('%4d %15.9e' % (iter, maxf))
+            preconditioner = self._linear_preconditioner(
+                f'nonlinear iteration {iter}'
+            )
             correction, info = scipy.sparse.linalg.cg(
-                self.A, residual, rtol=1.0e-12, atol=0.0, maxiter=max_subiter
+                self.A,
+                residual,
+                rtol=1.0e-12,
+                atol=0.0,
+                maxiter=max_subiter,
+                M=preconditioner,
             )
             if info != 0:
                 raise LinearSolverError(
@@ -814,6 +864,19 @@ class Model:
             # Update the nodal pressures; flows are set above.
             for node in self.variable_nodes:
                 node.pressure -= correction_factor * correction[node.index]
+            # Update pressure drops incrementally, as AIRNET does, to avoid
+            # cancellation when two large node pressures differ only slightly.
+            for link in self.links:
+                correction0 = (
+                    correction[link.node0.index] if link.node0.variable else 0.0
+                )
+                correction1 = (
+                    correction[link.node1.index] if link.node1.variable else 0.0
+                )
+                link.pdrop += correction_factor * (correction1 - correction0)
+            self._pressure_drop_node_pressures = {
+                node: node.pressure for node in self.nodes.values()
+            }
 
         raise NonlinearSolverError(
             max_iterations=maxiter,
@@ -826,12 +889,10 @@ class Model:
 def write_results_csv(nodes, links, csv_file_name: str)   :
     fp = open(csv_file_name, 'w')
     fp.write('node header, name, time id, pressure, temperature, density\n')
-    for node in nodes:
-        fp.write('node, %s, 0, %21.15e, %21.15e, %21.15e\n' % (node.name, node.pressure,
-                                                               node.temperature, node.density))
+    fp.writelines('node, %s, 0, %21.15e, %21.15e, %21.15e\n' % (node.name, node.pressure,
+                                                               node.temperature, node.density) for node in nodes)
     fp.write('link header, name, time id, pressure drop, flow0, flow1\n')
-    for link in links:
-        fp.write('link, %s, 0, %21.15e, %21.15e, %21.15e\n' % (link.name, link.pdrop, link.flow0, link.flow1))
+    fp.writelines('link, %s, 0, %21.15e, %21.15e, %21.15e\n' % (link.name, link.pdrop, link.flow0, link.flow1) for link in links)
     fp.close()
 
 def run_simulate(input_file, verbose=False, global_temperature=None, global_density=None):

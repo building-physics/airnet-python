@@ -1,0 +1,286 @@
+{
+  "case": "PL2",
+  "network": "AFDATA.PL2",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.PL2",
+  "runs": [
+    {
+      "source_run": 1,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": -33.33333,
+        "node-3": -66.66667,
+        "node-4": -100.0
+      },
+      "links": {
+        "link-1": [
+          33.33333,
+          0.000537583,
+          0.0
+        ],
+        "link-2": [
+          33.33333,
+          0.000537583,
+          0.0
+        ],
+        "link-3": [
+          33.33333,
+          0.000537583,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 2,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 3,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": -49.73538,
+        "node-3": -50.23187,
+        "node-4": -100.0
+      },
+      "links": {
+        "link-1": [
+          49.73538,
+          0.0006566574,
+          0.0
+        ],
+        "link-2": [
+          0.4964941,
+          0.0006559817,
+          0.0
+        ],
+        "link-3": [
+          49.76812,
+          0.0006566574,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 3,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 5,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": -49.98511,
+        "node-3": -49.99011,
+        "node-4": -100.0
+      },
+      "links": {
+        "link-1": [
+          49.9851,
+          0.000658304,
+          0.0
+        ],
+        "link-2": [
+          0.005000949,
+          0.0006583029,
+          0.0
+        ],
+        "link-3": [
+          50.0099,
+          0.0006583039,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 4,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 7,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": -49.98764,
+        "node-3": -49.98769,
+        "node-4": -100.0
+      },
+      "links": {
+        "link-1": [
+          49.98764,
+          0.0006583206,
+          0.0
+        ],
+        "link-2": [
+          4.9995e-05,
+          0.0006582066,
+          0.0
+        ],
+        "link-3": [
+          50.01231,
+          0.0006583206,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 5,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 7,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": -49.98766,
+        "node-3": -49.98766,
+        "node-4": -100.0
+      },
+      "links": {
+        "link-1": [
+          49.98766,
+          0.0006583208,
+          0.0
+        ],
+        "link-2": [
+          1.219247e-06,
+          0.0006583207,
+          0.0
+        ],
+        "link-3": [
+          50.01233,
+          0.0006583208,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 6,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 7,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": -49.98766,
+        "node-3": -49.98766,
+        "node-4": -100.0
+      },
+      "links": {
+        "link-1": [
+          49.98766,
+          0.0006583208,
+          0.0
+        ],
+        "link-2": [
+          3.855649e-08,
+          0.0006583208,
+          0.0
+        ],
+        "link-3": [
+          50.01234,
+          0.0006583208,
+          0.0
+        ]
+      }
+    },
+    {
+      "source_run": 7,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 6,
+      "nodes": {
+        "node-1": 0.0,
+        "node-2": -49.98767,
+        "node-3": -49.98767,
+        "node-4": -100.0
+      },
+      "links": {
+        "link-1": [
+          49.98766,
+          0.0006583208,
+          0.0
+        ],
+        "link-2": [
+          1.219247e-09,
+          0.0006583208,
+          0.0
+        ],
+        "link-3": [
+          50.01234,
+          0.0006583208,
+          0.0
+        ]
+      }
+    }
+  ],
+  "tolerances": {
+    "relative": 1e-06,
+    "pressure_absolute": 1e-06,
+    "flow_absolute": 1e-08,
+    "mass_balance_absolute": 1e-06
+  }
+}

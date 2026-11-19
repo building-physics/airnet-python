@@ -1,0 +1,146 @@
+/*subfile:  afdata.04f  ******************************************************/
+/
+title  4 floor test case; 7 rooms, 1 stairs, 1 elevator per floor
+
+node NW1  v  1.5  20.         room NW, floor 1
+node NC1  v  1.5  20.         room NC, floor 1
+node NE1  v  1.5  20.         room NE, floor 1
+node SW1  v  1.5  20.         room SW, floor 1
+node SC1  v  1.5  20.         room SC, floor 1
+node SE1  v  1.5  20.         room SE, floor 1
+node HL1  v  1.5  20.         room HL, floor 1
+node ST1  v  1.5  20.         room ST, floor 1
+node EL1  v  1.5  20.         room EL, floor 1
+node NW2  v  4.5  20.         room NW, floor 2
+node NC2  v  4.5  20.         room NC, floor 2
+node NE2  v  4.5  20.         room NE, floor 2
+node SW2  v  4.5  20.         room SW, floor 2
+node SC2  v  4.5  20.         room SC, floor 2
+node SE2  v  4.5  20.         room SE, floor 2
+node HL2  v  4.5  20.         room HL, floor 2
+node ST2  v  4.5  20.         room ST, floor 2
+node EL2  v  4.5  20.         room EL, floor 2
+node NW3  v  7.5  20.         room NW, floor 3
+node NC3  v  7.5  20.         room NC, floor 3
+node NE3  v  7.5  20.         room NE, floor 3
+node SW3  v  7.5  20.         room SW, floor 3
+node SC3  v  7.5  20.         room SC, floor 3
+node SE3  v  7.5  20.         room SE, floor 3
+node HL3  v  7.5  20.         room HL, floor 3
+node ST3  v  7.5  20.         room ST, floor 3
+node EL3  v  7.5  20.         room EL, floor 3
+node NW4  v 10.5  20.         room NW, floor 4
+node NC4  v 10.5  20.         room NC, floor 4
+node NE4  v 10.5  20.         room NE, floor 4
+node SW4  v 10.5  20.         room SW, floor 4
+node SC4  v 10.5  20.         room SC, floor 4
+node SE4  v 10.5  20.         room SE, floor 4
+node HL4  v 10.5  20.         room HL, floor 4
+node ST4  v 10.5  20.         room ST, floor 4
+node EL4  v 10.5  20.         room EL, floor 4
+node AMB  a  0.0  00.  0.0    ambient
+
+element inf-crk plr 1.69e-08  1.69e-08  0.00183847 0.5 room infiltration cracks - 0.002 m^2
+element inf-str plr 8.45e-11  8.45e-11  9.1924e-05 0.5 stair cracks - .0001 m^2
+element inf-elv plr 4.225e-09 4.225e-09 .000919236 0.5 elevator cracks - 0.001 m^2
+element flr-flr plr 2.535e-06 2.535e-06 0.0275771  0.5 floor to floor - 0.03 m^2
+element str-dor plr 2.535e-06 2.535e-06 0.0275771  0.5 closed stair door - 0.03 m^2
+element elv-dor plr 1.014e-05 1.014e-05 0.0551542  0.5 closed elevator door - 0.06 m^2
+element hal-dor plr 0.0169    0.0169    1.83847    0.5 hallway door - 2.0 m^2
+element str-str plr 0.0316873 0.0316873 2.29809    0.5 stairway resistance - 2.5 m^2
+element elv-elv plr 0.0675997 0.0675997 3.67695    0.5 elev shaft resistance 4.0 m^2
+
+link f1-i1a  AMB   1.5  NW1   0.0  inf-crk  west   0.6  1st floor infiltration openings
+link f1-i1b  AMB   1.5  NW1   0.0  inf-crk  north  0.6
+link f1-i2a  AMB   1.5  NC1   0.0  inf-crk  north  0.6
+link f1-i3a  AMB   1.5  NE1   0.0  inf-crk  north  0.6
+link f1-i3b  AMB   1.5  NE1   0.0  inf-crk  east   0.6
+link f1-i4a  AMB   1.5  SW1   0.0  inf-crk  west   0.6
+link f1-i4b  AMB   1.5  SW1   0.0  inf-crk  south  0.6
+link f1-i5a  AMB   1.5  SC1   0.0  inf-crk  south  0.6
+link f1-i6a  AMB   1.5  SE1   0.0  inf-crk  south  0.6
+link f1-i6b  AMB   1.5  SE1   0.0  inf-crk  east   0.6
+link f1-ist  AMB   1.5  ST1   0.0  inf-str  west   0.6
+link f1-iel  AMB   1.5  EL1   0.0  inf-elv  east   0.6
+link f2-i1a  AMB   4.5  NW2   0.0  inf-crk  west   0.6   2nd floor infiltration openings
+link f2-i1b  AMB   4.5  NW2   0.0  inf-crk  north  0.6
+link f2-i2a  AMB   4.5  NC2   0.0  inf-crk  north  0.6
+link f2-i3a  AMB   4.5  NE2   0.0  inf-crk  north  0.6
+link f2-i3b  AMB   4.5  NE2   0.0  inf-crk  east   0.6
+link f2-i4a  AMB   4.5  SW2   0.0  inf-crk  west   0.6
+link f2-i4b  AMB   4.5  SW2   0.0  inf-crk  south  0.6
+link f2-i5a  AMB   4.5  SC2   0.0  inf-crk  south  0.6
+link f2-i6a  AMB   4.5  SE2   0.0  inf-crk  south  0.6
+link f2-i6b  AMB   4.5  SE2   0.0  inf-crk  east   0.6
+link f2-ist  AMB   4.5  ST2   0.0  inf-str  west   0.6
+link f2-iel  AMB   4.5  EL2   0.0  inf-elv  east   0.6
+link f3-i1a  AMB   7.5  NW3   0.0  inf-crk  west   0.6   3rd floor infiltration openings
+link f3-i1b  AMB   7.5  NW3   0.0  inf-crk  north  0.6
+link f3-i2a  AMB   7.5  NC3   0.0  inf-crk  north  0.6
+link f3-i3a  AMB   7.5  NE3   0.0  inf-crk  north  0.6
+link f3-i3b  AMB   7.5  NE3   0.0  inf-crk  east   0.6
+link f3-i4a  AMB   7.5  SW3   0.0  inf-crk  west   0.6
+link f3-i4b  AMB   7.5  SW3   0.0  inf-crk  south  0.6
+link f3-i5a  AMB   7.5  SC3   0.0  inf-crk  south  0.6
+link f3-i6a  AMB   7.5  SE3   0.0  inf-crk  south  0.6
+link f3-i6b  AMB   7.5  SE3   0.0  inf-crk  east   0.6
+link f3-ist  AMB   7.5  ST3   0.0  inf-str  west   0.6
+link f3-iel  AMB   7.5  EL3   0.0  inf-elv  east   0.6
+link f4-i1a  AMB  10.5  NW4   0.0  inf-crk  west   0.6   4th floor infiltration openings
+link f4-i1b  AMB  10.5  NW4   0.0  inf-crk  north  0.6
+link f4-i2a  AMB  10.5  NC4   0.0  inf-crk  north  0.6
+link f4-i3a  AMB  10.5  NE4   0.0  inf-crk  north  0.6
+link f4-i3b  AMB  10.5  NE4   0.0  inf-crk  east   0.6
+link f4-i4a  AMB  10.5  SW4   0.0  inf-crk  west   0.6
+link f4-i4b  AMB  10.5  SW4   0.0  inf-crk  south  0.6
+link f4-i5a  AMB  10.5  SC4   0.0  inf-crk  south  0.6
+link f4-i6a  AMB  10.5  SE4   0.0  inf-crk  south  0.6
+link f4-i6b  AMB  10.5  SE4   0.0  inf-crk  east   0.6
+link f4-ist  AMB  10.5  ST4   0.0  inf-str  west   0.6
+link f4-iel  AMB  10.5  EL4   0.0  inf-elv  east   0.6
+
+link f1-dnw  NW1   0.0  HL1   0.0  hal-dor  null   1st floor doorway openings
+link f1-dnc  NC1   0.0  HL1   0.0  hal-dor  null
+link f1-dne  NE1   0.0  HL1   0.0  hal-dor  null
+link f1-dsw  SW1   0.0  HL1   0.0  hal-dor  null
+link f1-dsc  SC1   0.0  HL1   0.0  hal-dor  null
+link f1-sec  SE1   0.0  HL1   0.0  hal-dor  null
+link f1-stc  ST1   0.0  HL1   0.0  str-dor  null
+link f1-elc  EL1   0.0  HL1   0.0  elv-dor  null
+link f2-dnw  NW2   0.0  HL2   0.0  hal-dor  null   2nd floor doorway openings
+link f2-dnc  NC2   0.0  HL2   0.0  hal-dor  null
+link f2-dne  NE2   0.0  HL2   0.0  hal-dor  null
+link f2-dsw  SW2   0.0  HL2   0.0  hal-dor  null
+link f2-dsc  SC2   0.0  HL2   0.0  hal-dor  null
+link f2-sec  SE2   0.0  HL2   0.0  hal-dor  null
+link f2-stc  ST2   0.0  HL2   0.0  str-dor  null
+link f2-elc  EL2   0.0  HL2   0.0  elv-dor  null
+link f3-dnw  NW3   0.0  HL3   0.0  hal-dor  null   3rd floor doorway openings
+link f3-dnc  NC3   0.0  HL3   0.0  hal-dor  null
+link f3-dne  NE3   0.0  HL3   0.0  hal-dor  null
+link f3-dsw  SW3   0.0  HL3   0.0  hal-dor  null
+link f3-dsc  SC3   0.0  HL3   0.0  hal-dor  null
+link f3-sec  SE3   0.0  HL3   0.0  hal-dor  null
+link f3-stc  ST3   0.0  HL3   0.0  str-dor  null
+link f3-elc  EL3   0.0  HL3   0.0  elv-dor  null
+link f4-dnw  NW4   0.0  HL4   0.0  hal-dor  null   4th floor doorway openings
+link f4-dnc  NC4   0.0  HL4   0.0  hal-dor  null
+link f4-dne  NE4   0.0  HL4   0.0  hal-dor  null
+link f4-dsw  SW4   0.0  HL4   0.0  hal-dor  null
+link f4-dsc  SC4   0.0  HL4   0.0  hal-dor  null
+link f4-sec  SE4   0.0  HL4   0.0  hal-dor  null
+link f4-stc  ST4   0.0  HL4   0.0  str-dor  null
+link f4-elc  EL4   0.0  HL4   0.0  elv-dor  null
+
+link fl-1-2  HL1   1.5  HL2  -1.5  flr-flr  null   interfloor connections
+link fl-2-3  HL2   1.5  HL3  -1.5  flr-flr  null
+link fl-3-4  HL3   1.5  HL4  -1.5  flr-flr  null
+link st-1-2  ST1   1.5  ST2  -1.5  str-str  null   stairwell connections
+link st-2-3  ST2   1.5  ST3  -1.5  str-str  null
+link st-3-4  ST3   1.5  ST4  -1.5  str-str  null
+link el-1-2  EL1   1.5  EL2  -1.5  elv-elv  null   elevator connections
+link el-2-3  EL2   1.5  EL3  -1.5  elv-elv  null
+link el-3-4  EL3   1.5  EL4  -1.5  elv-elv  null
+
+*********
+
