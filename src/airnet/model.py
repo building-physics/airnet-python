@@ -4,14 +4,13 @@
 from __future__ import annotations
 
 import math
-import os
 
 import numpy
 import scipy
 
 from .afedat import object_lookup
 from .reader import InputType, Reader
-from .wind import WindProfile
+from .wind import WindProfile, read_wind_profiles
 
 
 def devnull(msg: str):
@@ -886,47 +885,100 @@ class Model:
             relative_tolerance=relative_tolerance,
         )
 
-def write_results_csv(nodes, links, csv_file_name: str)   :
-    fp = open(csv_file_name, 'w')
-    fp.write('node header, name, time id, pressure, temperature, density\n')
-    fp.writelines('node, %s, 0, %21.15e, %21.15e, %21.15e\n' % (node.name, node.pressure,
-                                                               node.temperature, node.density) for node in nodes)
-    fp.write('link header, name, time id, pressure drop, flow0, flow1\n')
-    fp.writelines('link, %s, 0, %21.15e, %21.15e, %21.15e\n' % (link.name, link.pdrop, link.flow0, link.flow1) for link in links)
-    fp.close()
+def write_results_csv(nodes, links, csv_file_name):
+    """Write node and link results in airnet's CSV interchange format."""
+    with open(csv_file_name, 'w', encoding='utf-8', newline='') as output:
+        output.write('node header, name, time id, pressure, temperature, density\n')
+        output.writelines(
+            f'node, {node.name}, 0, {node.pressure:21.15e}, '
+            f'{node.temperature:21.15e}, {node.density:21.15e}\n'
+            for node in nodes
+        )
+        output.write('link header, name, time id, pressure drop, flow0, flow1\n')
+        output.writelines(
+            f'link, {link.name}, 0, {link.pdrop:21.15e}, '
+            f'{link.flow0:21.15e}, {link.flow1:21.15e}\n'
+            for link in links
+        )
 
-def run_simulate(input_file, verbose=False, global_temperature=None, global_density=None):
 
+def run_simulate(
+    input_file,
+    verbose=False,
+    global_temperature=None,
+    global_density=None,
+    *,
+    output_file='airnetsim.csv',
+    wind_file=None,
+    ambient_temperature=20.0,
+    barometric_pressure=101325.0,
+    wind_speed=0.0,
+    wind_direction=0.0,
+    initialization_iterations=100,
+    maximum_iterations=100,
+    maximum_linear_iterations=100,
+    absolute_tolerance=1.0e-8,
+    relative_tolerance=None,
+    relaxation=1.0,
+):
+    """Read, solve, and optionally write one AIRNET network simulation.
+
+    This convenience API performs a single, non-interactive run. It returns
+    the solved :class:`Model`; callers that need structured results can read
+    the model's nodes and links directly. The output file is written only
+    after successful initialization and nonlinear convergence.
+
+    Parameters are expressed in AIRNET's SI units: degrees Celsius, pascals,
+    metres per second, degrees clockwise from north, and kilograms per second.
+    Set ``output_file`` to ``None`` to suppress CSV output.
+    """
     if verbose:
-        print('Opening input file "%s"...' % input_file)
-
-    if not os.path.exists(input_file):
-        print('airnetsim: error: the input file "%s" does not exist' % input_file)
-        return 1
-
-    fp = open(input_file, 'r')
-    reader = Reader(fp)
+        print(f'Opening input file "{input_file}"...')
+    with open(input_file, encoding='utf-8') as input_stream:
+        reader = Reader(input_stream)
+        if verbose:
+            print(f'Reading input file "{input_file}"...')
+        items = list(reader)
     if verbose:
-        print('Reading input file "%s"...' % input_file)
-    items = []
-    for item in reader:
-        items.append(item)
-    if verbose:
-        print('Closing input file "%s".' % input_file)
-    fp.close()
+        print(f'Closing input file "{input_file}".')
 
-    model = Model(items, global_temperature=global_temperature, global_density=global_density)
-    
+    wind_profiles = None
+    if wind_file is not None:
+        if verbose:
+            print(f'Reading wind profiles from "{wind_file}"...')
+        with open(wind_file, encoding='utf-8') as wind_stream:
+            wind_profiles = read_wind_profiles(wind_stream)
+
+    model = Model(
+        items,
+        global_temperature=global_temperature,
+        global_density=global_density,
+        wind_profiles=wind_profiles,
+        ambient_temperature=ambient_temperature,
+        barometric_pressure=barometric_pressure,
+        wind_speed=wind_speed,
+        wind_direction=wind_direction,
+    )
     if verbose:
         print(model.summary())
 
-    model.initialize()
-
+    model.initialize(maxiter=initialization_iterations)
+    iterations = model.air_movement(
+        maxiter=maximum_iterations,
+        max_subiter=maximum_linear_iterations,
+        tolerance=absolute_tolerance,
+        relative_tolerance=relative_tolerance,
+        relaxation=relaxation,
+        status_function=print if verbose else devnull,
+    )
     if verbose:
-        iters = model.air_movement(status_function=print)
-        print('iters = %d' % iters)
+        print(f'iters = {iterations}')
         print(model.results_summary())
-    else:
-        model.air_movement()
 
-    write_results_csv([el for el in model.nodes.values() if el.index is not None], model.links, 'airnetsim.csv')
+    if output_file is not None:
+        write_results_csv(
+            [node for node in model.nodes.values() if node.variable],
+            model.links,
+            output_file,
+        )
+    return model

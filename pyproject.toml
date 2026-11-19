@@ -75,10 +75,16 @@ check = "ruff check . {args}"
 [tool.hatch.envs.docs]
 dependencies = [
   "pydata-sphinx-theme",
+  "rst2pdf",
   "sphinx",
 ]
 [tool.hatch.envs.docs.scripts]
-build = "sphinx-build -M html docs/source docs/build {args}"
+html = "sphinx-build -W --keep-going -b html docs docs/_build/html {args}"
+pdf = "sphinx-build -W --keep-going -b pdf docs docs/_build/pdf {args}"
+build = [
+  "sphinx-build -W --keep-going -b html docs docs/_build/html {args}",
+  "sphinx-build -W --keep-going -b pdf docs docs/_build/pdf {args}",
+]
 
 [tool.coverage.run]
 branch = true

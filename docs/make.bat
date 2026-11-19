@@ -1,35 +1,28 @@
 @ECHO OFF
+SETLOCAL
+PUSHD %~dp0\..
 
-pushd %~dp0
+IF "%1"=="" GOTO all
+IF /I "%1"=="html" GOTO html
+IF /I "%1"=="pdf" GOTO pdf
+IF /I "%1"=="all" GOTO all
 
-REM Command file for Sphinx documentation
+ECHO Usage: docs\make.bat [html^|pdf^|all]
+POPD
+EXIT /B 2
 
-if "%SPHINXBUILD%" == "" (
-	set SPHINXBUILD=sphinx-build
-)
-set SOURCEDIR=source
-set BUILDDIR=build
+:html
+hatch run docs:html
+GOTO end
 
-%SPHINXBUILD% >NUL 2>NUL
-if errorlevel 9009 (
-	echo.
-	echo.The 'sphinx-build' command was not found. Make sure you have Sphinx
-	echo.installed, then set the SPHINXBUILD environment variable to point
-	echo.to the full path of the 'sphinx-build' executable. Alternatively you
-	echo.may add the Sphinx directory to PATH.
-	echo.
-	echo.If you don't have Sphinx installed, grab it from
-	echo.https://www.sphinx-doc.org/
-	exit /b 1
-)
+:pdf
+hatch run docs:pdf
+GOTO end
 
-if "%1" == "" goto help
-
-%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
-goto end
-
-:help
-%SPHINXBUILD% -M help %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+:all
+hatch run docs:build
 
 :end
-popd
+SET RESULT=%ERRORLEVEL%
+POPD
+EXIT /B %RESULT%

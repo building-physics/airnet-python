@@ -210,6 +210,17 @@ def test_run_simulate_does_not_write_results_after_initialization_failure(
     assert not (tmp_path / 'airnetsim.csv').exists()
 
 
+def test_run_simulate_returns_model_and_writes_selected_output(tmp_path):
+    input_file = tmp_path / 'network.txt'
+    output_file = tmp_path / 'selected-results.csv'
+    input_file.write_text(AFDATA_PL2, encoding='utf-8')
+
+    model = airnet.run_simulate(input_file, output_file=output_file)
+
+    assert isinstance(model, airnet.Model)
+    assert output_file.read_text(encoding='utf-8').startswith('node header,')
+
+
 class TwoWayElement:
     def type(self):
         return 'two'

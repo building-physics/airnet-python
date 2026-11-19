@@ -23,6 +23,28 @@ class InputType(enum.Enum):
 #    CKV = 7
 
 class Reader:
+    """Iterate over records in an AIRNET network-definition stream.
+
+    Parameters
+    ----------
+    fp:
+        An iterable text stream containing AIRNET records.
+    floats: bool, optional
+        Convert numeric fields to :class:`float` when true. When false,
+        validate numeric fields but retain their input strings.
+
+    Yields
+    ------
+    dict
+        One title, node, element, or link record at a time. The ``input_type``
+        value is an :class:`InputType` member.
+
+    Raises
+    ------
+    BadNetworkInput
+        If a recognized record is incomplete or contains invalid data.
+    """
+
     def __init__(self, fp, floats=True):
         self.fp = fp
         self.title = None

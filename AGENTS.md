@@ -16,7 +16,9 @@ Prioritize, in order:
 3. Detect invalid models, numerical failure, and non-convergence explicitly;
    never return plausible-looking partial results as success.
 4. Keep the domain model object-oriented and usable independently of the CLI.
-5. Make focused changes backed by unit and end-to-end parity tests.
+5. Keep documentation synchronized with every code change, including public
+   behavior, APIs, inputs, outputs, limitations, and tested support.
+6. Make focused changes backed by unit and end-to-end parity tests.
 
 AIRNET's interactive model editing, repeated runs driven by stdin, terminal
 prompts, and byte-for-byte report formatting are out of scope. Do not add new
@@ -113,6 +115,11 @@ Before changing code:
 
 While changing code:
 
+- Treat documentation as part of the implementation, not as release cleanup.
+  Every code change requires a documentation-impact review, and all affected
+  narrative documentation, docstrings, README material, CLI examples, and
+  support-matrix entries must be updated in the same change. A code change is
+  not complete while any documentation describes the previous behavior.
 - Keep parsing, domain objects, physical equations, solver assembly, and
   presentation separate.
 - Do not mutate caller-owned input records while constructing a `Model`.
@@ -137,13 +144,16 @@ available:
 ```powershell
 hatch run pytest tests regression-tests
 hatch run ruff check .
+hatch run docs:build
 ```
 
 For a focused change, run the smallest relevant test first, then nearby cases,
 then the full suite. Parser changes should exercise malformed input and all
 affected historical files. Element/solver changes require direct equation and
 Jacobian tests plus at least one end-to-end reference comparison. Check a
-Jacobian against finite differences where practical.
+Jacobian against finite differences where practical. Build both documentation
+formats after any documentation or public-interface change; warning-free HTML
+and PDF builds are part of completion.
 
 Do not weaken tolerances, overwrite expected files, or copy current Python
 output into a fixture merely to make a test pass. Explain any intentional
