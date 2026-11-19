@@ -26,7 +26,7 @@ def test_plr_one_way_return_contract(pressure):
         node1=make_node(density=0.9, viscosity=2.0e-5),
     )
 
-    count, flow0, flow1, derivative0, derivative1 = element.jacobian(
+    count, flow0, flow1, derivative0, derivative1 = element.calculate(
         link, pressure
     )
 
@@ -43,7 +43,7 @@ def test_plr_one_way_return_contract(pressure):
     ('pressure', 'upwind_node'),
     [(1.5, 0), (-1.5, 1), (0.0, 1)],
 )
-def test_plr_initialization_returns_flow_and_derivative(
+def test_plr_linearize_returns_flow_and_derivative(
     pressure, upwind_node
 ):
     element = Afe_Plr(init=0.01)
@@ -54,12 +54,12 @@ def test_plr_initialization_returns_flow_and_derivative(
     link = SimpleNamespace(node0=nodes[0], node1=nodes[1])
     derivative = element.init * nodes[upwind_node].dvisc
 
-    assert element.initialization(link, pressure) == pytest.approx(
+    assert element.linearize(link, pressure) == pytest.approx(
         (derivative * pressure, derivative)
     )
 
 
-def test_dwc_initialization_uses_upwind_properties():
+def test_dwc_linearize_uses_upwind_properties():
     element = Afe_Dwc(
         length=2.0,
         hdia=0.25,
@@ -78,10 +78,10 @@ def test_dwc_initialization_uses_upwind_properties():
     positive = 2.0 * 1.2 * 0.04909 * 0.25 / (1.8e-5 * 128.0 * 8.0)
     negative = 2.0 * 0.9 * 0.04909 * 0.25 / (2.0e-5 * 128.0 * 8.0)
 
-    assert element.initialization(link, 1.0) == pytest.approx(
+    assert element.linearize(link, 1.0) == pytest.approx(
         (positive, positive)
     )
-    assert element.initialization(link, -1.0) == pytest.approx(
+    assert element.linearize(link, -1.0) == pytest.approx(
         (-negative, negative)
     )
 
@@ -104,7 +104,7 @@ def test_dwc_laminar_jacobian_matches_finite_difference():
     pressure = 1.0e-8
     step = 1.0e-10
 
-    count, flow, flow1, derivative, derivative1 = element.jacobian(
+    count, flow, flow1, derivative, derivative1 = element.calculate(
         link, pressure
     )
     _, upper_flow, _ = element.flow(link, pressure + step)
@@ -139,8 +139,8 @@ def test_dwc_turbulent_flow_matches_dw1_parallel_duct():
 
     # AIRNET retains the friction-factor estimate between nonlinear
     # evaluations; DW1 converges on its second reported iteration.
-    element.jacobian(link, 9.0)
-    _, flow, _, derivative, _ = element.jacobian(link, 9.0)
+    element.calculate(link, 9.0)
+    _, flow, _, derivative, _ = element.calculate(link, 9.0)
 
     assert flow == pytest.approx(0.2448779, rel=1.0e-6)
     assert derivative == pytest.approx(0.5 * flow / 9.0)
@@ -151,7 +151,7 @@ def test_qfr_flow_satisfies_quadratic_relation(pressure):
     element = Afe_Qfr(a=0.31, b=44.8)
     link = SimpleNamespace()
 
-    count, flow, flow1, derivative, derivative1 = element.jacobian(
+    count, flow, flow1, derivative, derivative1 = element.calculate(
         link, pressure
     )
 
@@ -170,12 +170,12 @@ def test_qfr_flow_satisfies_quadratic_relation(pressure):
 
 
 @pytest.mark.parametrize('pressure', [-10.0, -1.0e-8, 0.0, 1.0e-8, 10.0])
-def test_qfr_jacobian_matches_finite_difference(pressure):
+def test_qfr_derivative_matches_finite_difference(pressure):
     element = Afe_Qfr(a=0.31, b=44.8)
     link = SimpleNamespace()
     step = 1.0e-10 if abs(pressure) < 1.0e-7 else 1.0e-6
 
-    _, _, _, derivative, _ = element.jacobian(link, pressure)
+    _, _, _, derivative, _ = element.calculate(link, pressure)
     _, upper, _ = element.flow(link, pressure + step)
     _, lower, _ = element.flow(link, pressure - step)
 
@@ -184,26 +184,26 @@ def test_qfr_jacobian_matches_finite_difference(pressure):
     )
 
 
-def test_qfr_initialization_returns_flow_and_derivative():
+def test_qfr_linearize_returns_flow_and_derivative():
     element = Afe_Qfr(a=0.25, b=3.0)
 
-    assert element.initialization(SimpleNamespace(), -2.0) == (-8.0, 4.0)
+    assert element.linearize(SimpleNamespace(), -2.0) == (-8.0, 4.0)
 
 
 def test_cfr_flow_is_pressure_independent():
     element = Afe_Cfr(flow=1.25)
     link = SimpleNamespace(multiplier=1.0)
 
-    assert element.initialization(link, 100.0) == (1.25, 0.0)
-    assert element.initialization(link, -100.0) == (1.25, 0.0)
-    assert element.jacobian(link, -100.0) == (1, 1.25, 0.0, 0.0, 0.0)
-    assert element.jacobian(link, 100.0) == (1, 1.25, 0.0, 0.0, 0.0)
+    assert element.linearize(link, 100.0) == (1.25, 0.0)
+    assert element.linearize(link, -100.0) == (1.25, 0.0)
+    assert element.calculate(link, -100.0) == (1, 1.25, 0.0, 0.0, 0.0)
+    assert element.calculate(link, 100.0) == (1, 1.25, 0.0, 0.0, 0.0)
     link.multiplier = -1.0
-    assert element.initialization(link, 100.0) == (
+    assert element.linearize(link, 100.0) == (
         -1.25,
         0.0,
     )
-    assert element.jacobian(link, 100.0) == (
+    assert element.calculate(link, 100.0) == (
         1,
         -1.25,
         0.0,
@@ -217,24 +217,24 @@ def test_ckv_is_closed_at_and_below_cutoff(pressure):
     element = Afe_Ckv(dp0=0.5, coef=10.0)
     link = SimpleNamespace(multiplier=1.0)
 
-    assert element.jacobian(link, pressure) == (1, 0.0, 0.0, 0.0, 0.0)
+    assert element.calculate(link, pressure) == (1, 0.0, 0.0, 0.0, 0.0)
 
 
-def test_ckv_initialization_is_closed():
+def test_ckv_linearize_is_closed():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
 
-    assert element.initialization(
+    assert element.linearize(
         SimpleNamespace(multiplier=1.0), 2.0
     ) == (0.0, 0.0)
 
 
-def test_ckv_open_flow_and_jacobian_match_finite_difference():
+def test_ckv_open_flow_and_derivative_match_finite_difference():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
     link = SimpleNamespace(multiplier=1.0)
     pressure = 2.0
     step = 1.0e-6
 
-    count, flow, flow1, derivative, derivative1 = element.jacobian(
+    count, flow, flow1, derivative, derivative1 = element.calculate(
         link, pressure
     )
     _, upper, _ = element.flow(link, pressure + step)
@@ -253,9 +253,9 @@ def test_ckv_multiplier_preserves_input_direction_when_link_is_reordered():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
     link = SimpleNamespace(multiplier=1.0)
 
-    forward_result = element.jacobian(link, 2.0)
+    forward_result = element.calculate(link, 2.0)
     link.multiplier = -1.0
-    reordered_result = element.jacobian(link, -2.0)
+    reordered_result = element.calculate(link, -2.0)
 
     assert reordered_result[1] == pytest.approx(-forward_result[1])
     assert reordered_result[3] == pytest.approx(forward_result[3])
@@ -289,11 +289,11 @@ def test_dor_uses_midheight_power_law_below_temperature_threshold():
     pressure = 1.25
     adjusted_pressure = pressure - 0.5 * doorway.ht * 9.8 * 0.10
 
-    assert doorway.initialization(link, pressure) == pytest.approx(
-        power_law.initialization(link, adjusted_pressure)
+    assert doorway.linearize(link, pressure) == pytest.approx(
+        power_law.linearize(link, adjusted_pressure)
     )
-    assert doorway.jacobian(link, pressure) == pytest.approx(
-        power_law.jacobian(link, adjusted_pressure)
+    assert doorway.calculate(link, pressure) == pytest.approx(
+        power_law.calculate(link, adjusted_pressure)
     )
 
 
@@ -310,8 +310,8 @@ def test_dor_uses_power_law_when_density_difference_is_zero():
         node1=make_node(1.20, 1.8e-5, temperature=295.15),
     )
 
-    assert doorway.jacobian(link, 0.25) == pytest.approx(
-        power_law.jacobian(link, 0.25)
+    assert doorway.calculate(link, 0.25) == pytest.approx(
+        power_law.calculate(link, 0.25)
     )
 
 
@@ -324,7 +324,7 @@ def test_dor_two_way_component_jacobians_match_finite_difference():
     pressure = 0.98
     step = 1.0e-6
 
-    count, flow0, flow1, derivative0, derivative1 = doorway.jacobian(
+    count, flow0, flow1, derivative0, derivative1 = doorway.calculate(
         link, pressure
     )
     _, upper0, upper1 = doorway.flow(link, pressure + step)
@@ -350,8 +350,8 @@ def test_dor_two_way_flow_reverses_with_link_orientation():
     forward_link = SimpleNamespace(node0=node0, node1=node1)
     reverse_link = SimpleNamespace(node0=node1, node1=node0)
 
-    forward = doorway.jacobian(forward_link, 0.98)
-    reverse = doorway.jacobian(reverse_link, -0.98)
+    forward = doorway.calculate(forward_link, 0.98)
+    reverse = doorway.calculate(reverse_link, -0.98)
 
     assert forward[0] == reverse[0] == 2
     assert reverse[1] == pytest.approx(-forward[1])
@@ -373,7 +373,7 @@ def test_dor_neutral_plane_outside_doorway_is_one_way(
         node1=make_node(1.10, 1.9e-5, temperature=295.15),
     )
 
-    count, flow0, flow1, derivative0, derivative1 = doorway.jacobian(
+    count, flow0, flow1, derivative0, derivative1 = doorway.calculate(
         link, pressure
     )
 
@@ -400,7 +400,7 @@ def test_dor_neutral_plane_boundaries_remain_two_way(
         link.node0.density - link.node1.density
     )
 
-    result = doorway.jacobian(link, pressure)
+    result = doorway.calculate(link, pressure)
 
     assert result[0] == 2
     assert result[zero_flow_index] == pytest.approx(0.0)

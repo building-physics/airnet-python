@@ -34,7 +34,7 @@ class Afe_Plr:
         """
         return 'plr'
 
-    def initialization(self, link, pdrop:float, control:float=1.0):
+    def linearize(self, link, pdrop:float, control:float=1.0):
         """Compute the initialization flow and pressure derivative.
         
         The function computes the linear flow relation used in initialization.
@@ -85,7 +85,7 @@ class Afe_Plr:
                 f = ft
         return 1, f, 0.0
 
-    def jacobian(self, link, pdrop:float, control:float=1.0):
+    def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute the flow through an element and the associated Jacobian terms.
         
         Parameters
@@ -151,7 +151,7 @@ class Afe_Dwc:
         """
         return 'dwc'
 
-    def initialization(self, link, pdrop:float, control:float=1.0):
+    def linearize(self, link, pdrop:float, control:float=1.0):
         """Compute AIRNET's laminar initialization flow and derivative."""
         node = link.node0 if pdrop >= 0.0 else link.node1
         derivative = (
@@ -181,7 +181,7 @@ class Afe_Dwc:
             self.f = 0.0032 + 0.221 / math.pow(reynolds, 0.237)
         return self.f
 
-    def jacobian(self, link, pdrop:float, control:float=1.0):
+    def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute duct mass flow and AIRNET's pressure derivative."""
         node = link.node0 if pdrop >= 0.0 else link.node1
         pressure = abs(pdrop)
@@ -226,19 +226,19 @@ class Afe_Dwc:
 
         if laminar_flow <= turbulent_flow:
             flow = laminar_flow
-            jacobian = laminar_jacobian
+            derivative = laminar_jacobian
         else:
             flow = turbulent_flow
             # AIRNET treats the friction factor as locally constant here.
-            jacobian = 0.5 * turbulent_flow / pressure
+            derivative = 0.5 * turbulent_flow / pressure
 
         if pdrop < 0.0:
             flow = -flow
-        return 1, flow, 0.0, jacobian, 0.0
+        return 1, flow, 0.0, derivative, 0.0
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute the one-way duct mass flow."""
-        nf, flow0, flow1, _, _ = self.jacobian(
+        nf, flow0, flow1, _, _ = self.calculate(
             link, pdrop, control=control
         )
         return nf, flow0, flow1
@@ -269,12 +269,12 @@ class Afe_Qfr:
         """
         return 'qfr'
 
-    def initialization(self, link, pdrop:float, control:float=1.0):
+    def linearize(self, link, pdrop:float, control:float=1.0):
         """Return the zero-flow initialization flow and derivative."""
         derivative = 1.0 / self.a
         return derivative * pdrop, derivative
 
-    def jacobian(self, link, pdrop:float, control:float=1.0):
+    def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute quadratic-relation mass flow and its pressure derivative."""
         pressure = abs(pdrop)
         root = math.sqrt(self.a * self.a + 4.0 * self.b * pressure)
@@ -287,7 +287,7 @@ class Afe_Qfr:
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute quadratic-relation mass flow without derivative terms."""
-        nf, flow0, flow1, _, _ = self.jacobian(
+        nf, flow0, flow1, _, _ = self.calculate(
             link, pdrop, control=control
         )
         return nf, flow0, flow1
@@ -325,14 +325,14 @@ class Afe_Dor(Afe_Plr):
         drho = link.node0.density - link.node1.density
         return pdrop - 0.5 * self.ht * 9.8 * drho
 
-    def initialization(self, link, pdrop:float, control:float=1.0):
+    def linearize(self, link, pdrop:float, control:float=1.0):
         """Compute the power-law initialization flow and derivative."""
         adjusted_pdrop = self._power_law_pressure_drop(link, pdrop)
-        return super().initialization(
+        return super().linearize(
             link, adjusted_pdrop, control=control
         )
 
-    def jacobian(self, link, pdrop:float, control:float=1.0):
+    def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute the flow through an element and the associated Jacobian terms.
         
         Parameters
@@ -354,7 +354,7 @@ class Afe_Dor(Afe_Plr):
 
         if self.one_way_flow(link):
             adjusted_pdrop = self._power_law_pressure_drop(link, pdrop)
-            return super().jacobian(
+            return super().calculate(
                 link, adjusted_pdrop, control=control
             )
 
@@ -397,7 +397,7 @@ class Afe_Dor(Afe_Plr):
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute doorway flow without returning derivative terms."""
-        nf, flow0, flow1, _, _ = self.jacobian(
+        nf, flow0, flow1, _, _ = self.calculate(
             link, pdrop, control=control
         )
         return nf, flow0, flow1
@@ -416,17 +416,17 @@ class Afe_Cfr:
         """
         return 'cfr'
 
-    def initialization(self, link, pdrop:float, control:float=1.0):
+    def linearize(self, link, pdrop:float, control:float=1.0):
         """Return the initialization flow and its pressure derivative."""
         return link.multiplier * self.flow_rate * control, 0.0
 
-    def jacobian(self, link, pdrop:float, control:float=1.0):
+    def calculate(self, link, pdrop:float, control:float=1.0):
         """Return the pressure-independent flow and zero derivative."""
         return 1, link.multiplier * self.flow_rate * control, 0.0, 0.0, 0.0
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Return the pressure-independent mass flow."""
-        nf, flow0, flow1, _, _ = self.jacobian(
+        nf, flow0, flow1, _, _ = self.calculate(
             link, pdrop, control=control
         )
         return nf, flow0, flow1
@@ -488,11 +488,11 @@ class Afe_Ckv:
         """
         return 'ckv'
 
-    def initialization(self, link, pdrop:float, control:float=1.0):
+    def linearize(self, link, pdrop:float, control:float=1.0):
         """Return AIRNET's closed-valve initialization relation."""
         return 0.0, 0.0
 
-    def jacobian(self, link, pdrop:float, control:float=1.0):
+    def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute the positive-input-direction check-valve flow."""
         pressure_above_cutoff = link.multiplier * pdrop - self.dp0
         if pressure_above_cutoff <= 0.0:
@@ -507,7 +507,7 @@ class Afe_Ckv:
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute check-valve flow without derivative terms."""
-        nf, flow0, flow1, _, _ = self.jacobian(
+        nf, flow0, flow1, _, _ = self.calculate(
             link, pdrop, control=control
         )
         return nf, flow0, flow1

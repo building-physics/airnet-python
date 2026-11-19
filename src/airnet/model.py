@@ -242,7 +242,7 @@ class Model:
                     ) from error
                 missing_methods = [
                     method
-                    for method in ('initialization', 'flow', 'jacobian')
+                    for method in ('linearize', 'flow', 'calculate')
                     if not callable(getattr(element, method, None))
                 ]
                 if missing_methods:
@@ -520,7 +520,7 @@ class Model:
                 pdrop = (
                     link.node0.pressure - link.node1.pressure + link.pdrop
                 )
-                flow, derivative = link.element.initialization(
+                flow, derivative = link.element.linearize(
                     link, pdrop=pdrop
                 )
                 right_hand_side = -flow
@@ -558,7 +558,7 @@ class Model:
         # Update the flows
         for link in self.links:
             pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
-            flow, derivative = link.element.initialization(
+            flow, derivative = link.element.linearize(
                 link, pdrop=pdrop
             )
             if not math.isfinite(derivative) or not math.isfinite(flow):
@@ -651,7 +651,7 @@ class Model:
             for link in self.links:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                 if link.node0.variable:
-                    nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(
+                    nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(
                         link, pdrop
                     )
                     if not all(
