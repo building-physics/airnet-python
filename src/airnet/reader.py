@@ -195,7 +195,7 @@ class Reader:
         #         a2l a22 a23 a24 mf3
         #         ... ... ... ... mfn
         data = input_string.split()
-        if len(data) < 7:
+        if len(data) < 4:
             raise BadNetworkInput('Element type "fan" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
         obj = {'input_type': InputType.ELEMENT, 'type': 'fan', 'name': name,
                'init': self.handle_float('fan', 'init', data[0]), 'lam': self.handle_float('fan', 'lam', data[1]),
@@ -224,8 +224,8 @@ class Reader:
                 raise BadNetworkInput('Element type "fan" data point at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
             pts.append({'a1': self.handle_float('fan', 'a1%d' % (i+1), data[0]),
                         'a2': self.handle_float('fan', 'a2%d' % (i+1), data[1]),
-                        'a3': self.handle_float('fan', 'a3%d' % (i+1), data[3]),
-                        'a4': self.handle_float('fan', 'a4%d' % (i+1), data[4]), 
+                        'a3': self.handle_float('fan', 'a3%d' % (i+1), data[2]),
+                        'a4': self.handle_float('fan', 'a4%d' % (i+1), data[3]),
                         'mf': self.handle_float('fan', 'mf%d' % (i+1), data[4])})
         obj['pts'] = pts
         return obj

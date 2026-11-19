@@ -179,7 +179,7 @@ def test_air_movement_rejects_non_finite_element_results(monkeypatch):
     monkeypatch.setattr(
         model.links[0].element,
         'calculate',
-        lambda link, pdrop: (
+        lambda link, pdrop, control=1.0: (
             1,
             float('nan'),
             0.0,
@@ -214,14 +214,16 @@ class TwoWayElement:
     def type(self):
         return 'two'
 
-    def linearize(self, link, pdrop):
+    def linearize(self, link, pdrop, control=1.0):
         return 2.0 * pdrop, 2.0
 
-    def calculate(self, link, pdrop):
+    def calculate(self, link, pdrop, control=1.0):
         return 2, pdrop + 2.0, pdrop - 1.0, 1.0, 1.0
 
-    def flow(self, link, pdrop):
-        nf, flow0, flow1, _, _ = self.calculate(link, pdrop)
+    def flow(self, link, pdrop, control=1.0):
+        nf, flow0, flow1, _, _ = self.calculate(
+            link, pdrop, control=control
+        )
         return nf, flow0, flow1
 
 
@@ -548,7 +550,7 @@ def test_check_valve_does_not_anchor_linear_initialization():
         airnet.Model(records)
 
 
-def test_model_rejects_unsupported_solver_element():
+def test_model_constructs_supported_fan_element():
     records = valid_network_records()
     element = record_named(records, 'opening')
     element.clear()
@@ -564,23 +566,30 @@ def test_model_rejects_unsupported_solver_element():
             'rdens': 1.2,
             'fdf': 1.0,
             'sop': 1.0,
-            'off': 0.0,
-        }
-    )
+                'off': 0.0,
+                'mf1': 100.0,
+                'pts': [
+                    {
+                        'a1': 1.0,
+                        'a2': -1.0,
+                        'a3': 0.0,
+                        'a4': -1.0,
+                        'mf': -100.0,
+                    }
+                ],
+            }
+        )
 
-    with pytest.raises(
-        airnet.UnsupportedNetworkFeature,
-        match='unsupported solver element type "fan"',
-    ):
-        airnet.Model(records)
+    model = airnet.Model(records)
+
+    assert model.elements['opening'].type() == 'fan'
 
 
 @pytest.mark.parametrize(
     ('updates', 'message'),
     [
         ({'wind': 'wind-profile', 'wpmod': 1.0}, 'wind-pressure behavior'),
-        ({'mult': 2.0}, 'unsupported multiplier'),
-        ({'control': 0.5}, 'unsupported control behavior'),
+        ({'control': 0.5}, 'does not control'),
     ],
 )
 def test_model_rejects_unsupported_link_features(updates, message):
@@ -589,6 +598,25 @@ def test_model_rejects_unsupported_link_features(updates, message):
 
     with pytest.raises(airnet.UnsupportedNetworkFeature, match=message):
         airnet.Model(records)
+
+
+def test_model_rejects_nonpositive_link_multiplier():
+    records = valid_network_records()
+    record_named(records, 'connection')['mult'] = 0.0
+
+    with pytest.raises(
+        airnet.BadNetwork, match='multiplier must be finite and positive'
+    ):
+        airnet.Model(records)
+
+
+def test_model_accepts_positive_link_multiplier():
+    records = valid_network_records()
+    record_named(records, 'connection')['mult'] = 2.5
+
+    model = airnet.Model(records)
+
+    assert model.links[0].multiplier == 2.5
 
 
 def test_model_rejects_unsupported_ambient_node_behavior():

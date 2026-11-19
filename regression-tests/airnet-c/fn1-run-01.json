@@ -1,0 +1,10 @@
+{
+  "case": "FN1", "scenario": "fan control 1.0", "network": "AFDATA.FN1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.FN1", "source_run": 1,
+  "link_controls": {"link-1": 1.0},
+  "run_control": {"maximum_iterations": 30, "relative_airflow_tolerance": 0.0001, "absolute_airflow_tolerance": 0.000001, "relaxation_coefficient": 0.75},
+  "expected_iterations": 6,
+  "nodes": {"node-1": {"pressure": 0.0}, "node-2": {"pressure": 660.3155}, "node-3": {"pressure": 0.0}},
+  "links": {"link-1": {"flow_count": 1, "pressure_drop": -660.3155, "flow0": 3.157926, "flow1": 0.0}, "link-2": {"flow_count": 1, "pressure_drop": 660.3155, "flow0": 3.157875, "flow1": 0.0}},
+  "tolerances": {"relative": 0.000002, "pressure_absolute": 0.001, "flow_absolute": 0.0001, "mass_balance_absolute": 0.0001}
+}

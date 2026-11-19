@@ -315,6 +315,13 @@ def test_afdata_fn1():
     assert len(results) == 8
     assert results[4]['type'] == 'fan'
     assert results[5]['expt'] == 0.5
+    assert results[4]['pts'][0] == {
+        'a1': 764.429,
+        'a2': -18.2932,
+        'a3': 19.4639,
+        'a4': -7.63948,
+        'mf': -10000.0,
+    }
 
 AFDATA_FN2 = '''/*subfile:  afdata.fn2  ******************************************************/
 /

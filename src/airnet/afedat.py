@@ -2,6 +2,12 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 import math
+import struct
+
+
+def _float32(value):
+    """Round a value as AIRNET's R4 fan-curve temporaries do."""
+    return struct.unpack('f', struct.pack('f', value))[0]
 
 
 class Afe_Plr:
@@ -52,7 +58,8 @@ class Afe_Plr:
             derivative = self.init * link.node0.dvisc
         else:
             derivative = self.init * link.node1.dvisc
-        return derivative * pdrop, derivative
+        multiplier = abs(link.multiplier)
+        return multiplier * derivative * pdrop, multiplier * derivative
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute the flow through an element.
@@ -83,7 +90,7 @@ class Afe_Plr:
                 f = fl
             else:
                 f = ft
-        return 1, f, 0.0
+        return 1, abs(link.multiplier) * f, 0.0
 
     def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute the flow through an element and the associated Jacobian terms.
@@ -121,7 +128,8 @@ class Afe_Plr:
             cdm = 0.5 * self.lam * (link.node0.dvisc + link.node1.dvisc) # original code used node0
             f = fl = ft = 0.0
             df = cdm
-        return 1, f, 0.0, df, 0.0
+        multiplier = abs(link.multiplier)
+        return 1, multiplier * f, 0.0, multiplier * df, 0.0
 
 class Afe_Dwc:
     """Darcy-Weisbach duct flow element."""
@@ -158,7 +166,8 @@ class Afe_Dwc:
             2.0 * node.density * self.area * self.hdia
             / (node.viscosity * self.linit * self.ld)
         )
-        return derivative * pdrop, derivative
+        multiplier = abs(link.multiplier)
+        return multiplier * derivative * pdrop, multiplier * derivative
 
     def _friction_factor(self, reynolds:float):
         """Update the Darcy friction factor using AIRNET's Colebrook solve."""
@@ -234,7 +243,8 @@ class Afe_Dwc:
 
         if pdrop < 0.0:
             flow = -flow
-        return 1, flow, 0.0, derivative, 0.0
+        multiplier = abs(link.multiplier)
+        return 1, multiplier * flow, 0.0, multiplier * derivative, 0.0
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute the one-way duct mass flow."""
@@ -257,7 +267,7 @@ class Afe_Qfr:
         if a <= 0.0 or b <= 0.0:
             raise ValueError('Quadratic flow coefficients must be positive')
         self.a = a # pdrop = a*f + b*f*f
-        self.b = b #
+        self.b = b
 
     def type(self):
         """Returns the flow element three-character type.
@@ -272,7 +282,8 @@ class Afe_Qfr:
     def linearize(self, link, pdrop:float, control:float=1.0):
         """Return the zero-flow initialization flow and derivative."""
         derivative = 1.0 / self.a
-        return derivative * pdrop, derivative
+        multiplier = abs(link.multiplier)
+        return multiplier * derivative * pdrop, multiplier * derivative
 
     def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute quadratic-relation mass flow and its pressure derivative."""
@@ -283,7 +294,8 @@ class Afe_Qfr:
         if pdrop < 0.0:
             flow = -flow
         derivative = 1.0 / (self.a + 2.0 * self.b * abs(flow))
-        return 1, flow, 0.0, derivative, 0.0
+        multiplier = abs(link.multiplier)
+        return 1, multiplier * flow, 0.0, multiplier * derivative, 0.0
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute quadratic-relation mass flow without derivative terms."""
@@ -393,7 +405,14 @@ class Afe_Dor(Afe_Plr):
                 df1 = link.node0.sqrt_density * dfh
                 f2 = -link.node1.sqrt_density * f0
                 df2 = link.node1.sqrt_density * df0
-        return nf, f1, f2, df1, df2
+        multiplier = abs(link.multiplier)
+        return (
+            nf,
+            multiplier * f1,
+            multiplier * f2,
+            multiplier * df1,
+            multiplier * df2,
+        )
 
     def flow(self, link, pdrop:float, control:float=1.0):
         """Compute doorway flow without returning derivative terms."""
@@ -433,7 +452,15 @@ class Afe_Cfr:
 
 class Afe_Fan(Afe_Plr):
     def __init__(self, init:float=0.0, lam:float=0.0, turb:float=0.0, expt:float=0.5, rdens:float=0.0,
-                 fdf:float=0.0, sop:float=0.0, off:float=0.0, mf1:float=0.0, pts:float=None): #prl = None, fpc = None):
+                 fdf:float=0.0, sop:float=0.0, off:float=0.0, mf1:float=0.0, pts=None):
+        if rdens <= 0.0:
+            raise ValueError('Fan reference density must be positive')
+        if fdf <= 0.0:
+            raise ValueError('Fan free-delivery flow must be positive')
+        if sop <= 0.0:
+            raise ValueError('Fan shut-off pressure must be positive')
+        if not pts:
+            raise ValueError('Fan must have at least one performance-curve range')
         self.init = init # laminar initialization coefficient
         self.lam = lam # laminar flow coefficient
         self.turb = turb # turbulent flow coefficient
@@ -442,8 +469,11 @@ class Afe_Fan(Afe_Plr):
         self.fdf = fdf # free delivery flow (prise = 0) (kg/s)
         self.sop = sop # shut-off pressure (flow = 0) (Pa)
         self.off = off # fan is off if (RPM/rated RPM) < off
-        #self.*prl = *prl # vector of pressure range limits [0..nfr]
-        #self.**fpc = **fpc # array of fan performance coefficients [1..nfr][0..3]
+        self.range_limits = [mf1] + [point['mf'] for point in pts]
+        self.coefficients = [
+            (point['a1'], point['a2'], point['a3'], point['a4'])
+            for point in pts
+        ]
 
     def type(self):
         """Returns the flow element three-character type.
@@ -455,8 +485,104 @@ class Afe_Fan(Afe_Plr):
         """
         return 'fan'
 
+    @staticmethod
+    def _input_nodes(link):
+        if link.multiplier > 0.0:
+            return link.node0, link.node1
+        return link.node1, link.node0
+
+    def _operating_density_ratio(self, link, input_pdrop):
+        input_node0, input_node1 = self._input_nodes(link)
+        density = input_node0.density if input_pdrop < 0.0 else input_node1.density
+        return density / self.rdens
+
+    def linearize(self, link, pdrop:float, control:float=1.0):
+        """Return AIRNET's fan initialization flow and derivative."""
+        if control <= self.off:
+            return super().linearize(link, pdrop, control=control)
+
+        direction = math.copysign(1.0, link.multiplier)
+        input_pdrop = direction * pdrop
+        density_ratio = self._operating_density_ratio(link, input_pdrop)
+        pressure_rise = -input_pdrop / (control * control * density_ratio)
+        input_flow = (
+            -self.fdf * control * (1.0 - pressure_rise / self.sop)
+            * control * density_ratio
+        )
+        derivative = self.fdf / (self.sop * control)
+        return link.multiplier * input_flow, abs(link.multiplier) * derivative
+
+    @staticmethod
+    def _cuberoot(value):
+        # Preserve AIRNET's single-precision exponent rather than replacing
+        # it with an exact one-third; the fitted fan cases are sensitive to
+        # this legacy numerical choice.
+        return math.copysign(math.pow(abs(value), 0.3333333), value)
+
+    def _curve_range(self, pressure_rise):
+        index = 0
+        while (
+            index + 1 < len(self.coefficients)
+            and pressure_rise < self.range_limits[index + 1]
+        ):
+            index += 1
+        return index
+
+    def calculate(self, link, pdrop:float, control:float=1.0):
+        """Compute fan-curve mass flow and its pressure derivative."""
+        if control <= self.off:
+            return super().calculate(link, pdrop, control=control)
+
+        direction = math.copysign(1.0, link.multiplier)
+        input_pdrop = direction * pdrop
+        density_ratio = self._operating_density_ratio(link, input_pdrop)
+        pressure_rise = -input_pdrop / (control * control * density_ratio)
+        coefficients = self.coefficients[self._curve_range(pressure_rise)]
+        a0, a1, a2, a3 = coefficients
+
+        # AIRNET solves a0 + a1*f + a2*f**2 + a3*f**3 = pressure_rise
+        # with Cardano's formula. Fan input validation excludes curves with a
+        # turning point, leaving the single real root used here.
+        p = _float32(a2 / a3)
+        q = _float32(a1 / a3)
+        r = _float32((a0 - pressure_rise) / a3)
+        depressed_a = _float32((3.0 * q - p * p) / 3.0)
+        depressed_b = _float32((
+            2.0 * p * p * p - 9.0 * p * q + 27.0 * r
+        ) / 27.0)
+        discriminant = _float32(
+            0.25 * depressed_b * depressed_b
+            + depressed_a * depressed_a * depressed_a / 27.0
+        )
+        root = _float32(math.sqrt(max(0.0, discriminant)))
+        rated_flow = (
+            _float32(self._cuberoot(_float32(-0.5 * depressed_b + root)))
+            + _float32(self._cuberoot(_float32(-0.5 * depressed_b - root)))
+            - p / 3.0
+        )
+        dpdf = a1 + rated_flow * (2.0 * a2 + rated_flow * 3.0 * a3)
+        input_flow = rated_flow * control * density_ratio
+        derivative = -1.0 / (dpdf * control)
+        return (
+            1,
+            link.multiplier * input_flow,
+            0.0,
+            abs(link.multiplier) * derivative,
+            0.0,
+        )
+
+    def flow(self, link, pdrop:float, control:float=1.0):
+        nf, flow0, flow1, _, _ = self.calculate(link, pdrop, control=control)
+        return nf, flow0, flow1
+
 class Afe_Cpf:
     def __init__(self, upo = 0.0, prmin = 0.0, ftyp = 0.0):
+        if upo <= 0.0:
+            raise ValueError('Constant-power fan useful power must be positive')
+        if prmin <= 0.0:
+            raise ValueError('Constant-power fan minimum pressure must be positive')
+        if ftyp <= 0.0:
+            raise ValueError('Constant-power fan typical flow must be positive')
         self.upo = upo # useful power output (W)
         self.prmin = prmin # minimum pressure rise (Pa)
         self.ftyp = ftyp # typical mass flow rate (kg/s)
@@ -470,6 +596,46 @@ class Afe_Cpf:
             The three-character type of the flow element.
         """
         return 'cpf'
+
+    @staticmethod
+    def _input_node(link):
+        return link.node0 if link.multiplier > 0.0 else link.node1
+
+    def linearize(self, link, pdrop:float, control:float=1.0):
+        """Return AIRNET's typical-flow CPF initialization relation."""
+        if control <= 0.0:
+            return 0.0, 0.0
+        input_flow = self.ftyp
+        pressure_rise = (
+            self._input_node(link).density * self.upo * control / input_flow
+        )
+        derivative = input_flow / pressure_rise
+        return link.multiplier * input_flow, abs(link.multiplier) * derivative
+
+    def calculate(self, link, pdrop:float, control:float=1.0):
+        """Compute constant-power fan flow and pressure derivative."""
+        if control <= 0.0:
+            return 1, 0.0, 0.0, 0.0, 0.0
+        direction = math.copysign(1.0, link.multiplier)
+        pressure_rise = -direction * pdrop
+        power = self._input_node(link).density * self.upo * control
+        if pressure_rise > self.prmin:
+            input_flow = power / pressure_rise
+            derivative = input_flow / pressure_rise
+        else:
+            input_flow = power / self.prmin
+            derivative = 0.0
+        return (
+            1,
+            link.multiplier * input_flow,
+            0.0,
+            abs(link.multiplier) * derivative,
+            0.0,
+        )
+
+    def flow(self, link, pdrop:float, control:float=1.0):
+        nf, flow0, flow1, _, _ = self.calculate(link, pdrop, control=control)
+        return nf, flow0, flow1
 
 class Afe_Ckv:
     def __init__(self, dp0:float=0.0, coef:float=0.0):
@@ -494,7 +660,8 @@ class Afe_Ckv:
 
     def calculate(self, link, pdrop:float, control:float=1.0):
         """Compute the positive-input-direction check-valve flow."""
-        pressure_above_cutoff = link.multiplier * pdrop - self.dp0
+        direction = math.copysign(1.0, link.multiplier)
+        pressure_above_cutoff = direction * pdrop - self.dp0
         if pressure_above_cutoff <= 0.0:
             return 1, 0.0, 0.0, 0.0, 0.0
 
@@ -502,7 +669,9 @@ class Afe_Ckv:
             self.coef * pressure_above_cutoff, 1.1
         )
         flow = link.multiplier * input_flow
-        derivative = 1.1 * input_flow / pressure_above_cutoff
+        derivative = (
+            abs(link.multiplier) * 1.1 * input_flow / pressure_above_cutoff
+        )
         return 1, flow, 0.0, derivative, 0.0
 
     def flow(self, link, pdrop:float, control:float=1.0):

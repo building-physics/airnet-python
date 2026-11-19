@@ -1,0 +1,10 @@
+{
+  "case": "CP1", "scenario": "constant-power fan in forward input orientation", "network": "AFDATA.CP1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.CP1", "source_run": 1,
+  "link_controls": {"link-1": 1.0},
+  "run_control": {"maximum_iterations": 30, "relative_airflow_tolerance": 0.0001, "absolute_airflow_tolerance": 0.000001, "relaxation_coefficient": 0.75},
+  "expected_iterations": 3,
+  "nodes": {"node-1": {"pressure": 0.0}, "node-2": {"pressure": 5.945403}},
+  "links": {"link-1": {"flow_count": 1, "pressure_drop": -5.945403, "flow0": 2.025343, "flow1": 0.0}, "link-2": {"flow_count": 1, "pressure_drop": 5.945403, "flow0": 2.025307, "flow1": 0.0}},
+  "tolerances": {"relative": 0.0001, "pressure_absolute": 0.0005, "flow_absolute": 0.0002, "mass_balance_absolute": 0.0002}
+}

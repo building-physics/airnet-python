@@ -61,7 +61,7 @@ class Node:
 
 class Link:
     def __init__(self, name=None, node0=None, ht0=0.0, node1=None, ht1=0.0, element=None,
-                 wind=None, wpmod=0.0, mult=1.0, flipped=False):
+                 wind=None, wpmod=0.0, mult=1.0, control=1.0, flipped=False):
         self.name = name
         self.node0 = node0
         self.node1 = node1
@@ -71,6 +71,7 @@ class Link:
         self.wind = wind
         self.wpmod = wpmod
         self.multiplier = mult
+        self.control = control
         self.flipped = flipped
         self.flow_count = 0
         self.flow0 = 0.0
@@ -154,7 +155,7 @@ class Model:
     """A class containing nodes, links, and other data representing a pressure network.
     """
     supported_element_types = frozenset(
-        {'plr', 'dwc', 'qfr', 'dor', 'cfr', 'ckv'}
+        {'plr', 'dwc', 'qfr', 'dor', 'cfr', 'fan', 'cpf', 'ckv'}
     )
 
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
@@ -266,13 +267,10 @@ class Model:
                 raise UnsupportedNetworkFeature(
                     f'Link "{name}" uses unsupported wind-pressure behavior'
                 )
-            if link.get('mult', 1.0) != 1.0:
-                raise UnsupportedNetworkFeature(
-                    f'Link "{name}" uses an unsupported multiplier'
-                )
-            if 'control' in link or 'ctrl' in link:
-                raise UnsupportedNetworkFeature(
-                    f'Link "{name}" uses unsupported control behavior'
+            multiplier = link.get('mult', 1.0)
+            if not math.isfinite(multiplier) or multiplier <= 0.0:
+                raise BadNetwork(
+                    f'Link "{name}" multiplier must be finite and positive'
                 )
 
             try:
@@ -303,6 +301,20 @@ class Model:
             node0 = self.nodes[node0_name]
             node1 = self.nodes[node1_name]
             element = self.elements[element_name]
+            if 'control' in link and 'ctrl' in link:
+                raise BadNetwork(
+                    f'Link "{name}" defines both control and ctrl'
+                )
+            control = link.pop('control', link.pop('ctrl', 1.0))
+            if not math.isfinite(control) or not 0.0 <= control <= 1.0:
+                raise BadNetwork(
+                    f'Link "{name}" control must be between 0 and 1'
+                )
+            if control != 1.0 and element.type() not in {'fan', 'cpf', 'cfr'}:
+                raise UnsupportedNetworkFeature(
+                    f'Link "{name}" controls an element that AIRNET does not control'
+                )
+            link['control'] = control
             adjacency[node0_name].add(node1_name)
             adjacency[node1_name].add(node0_name)
             if element.type() not in ['ckv', 'cfr']:
@@ -521,7 +533,7 @@ class Model:
                     link.node0.pressure - link.node1.pressure + link.pdrop
                 )
                 flow, derivative = link.element.linearize(
-                    link, pdrop=pdrop
+                    link, pdrop=pdrop, control=link.control
                 )
                 right_hand_side = -flow
                 if not math.isfinite(derivative) or not math.isfinite(
@@ -559,7 +571,7 @@ class Model:
         for link in self.links:
             pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
             flow, derivative = link.element.linearize(
-                link, pdrop=pdrop
+                link, pdrop=pdrop, control=link.control
             )
             if not math.isfinite(derivative) or not math.isfinite(flow):
                 raise NumericalSolverError(
@@ -652,7 +664,7 @@ class Model:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                 if link.node0.variable:
                     nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(
-                        link, pdrop
+                        link, pdrop, control=link.control
                     )
                     if not all(
                         math.isfinite(value)
@@ -677,7 +689,9 @@ class Model:
                         self.A[link.node0.index, link.node1.index] -= derivative
                         self.A[link.node1.index, link.node0.index] -= derivative
                 else:
-                    nf, link.flow0, link.flow1 = link.element.flow(link, pdrop)
+                    nf, link.flow0, link.flow1 = link.element.flow(
+                        link, pdrop, control=link.control
+                    )
                     if not all(
                         math.isfinite(value)
                         for value in (link.flow0, link.flow1)

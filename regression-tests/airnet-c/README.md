@@ -20,6 +20,13 @@ single-shot fixtures named `<case>-run-<number>.json`, such as
 changed expected values must be checked against the historical report or a
 reviewed run of AIRNET-C.
 
+Some repeated AIRNET runs establish air properties from the preceding node
+pressure state before performing a new linear initialization. Their
+independent fixtures record that state in `initial_node_pressures`; the test
+harness uses it only to establish properties and then resets variable-node
+pressure guesses. Controlled links are recorded explicitly in
+`link_controls`.
+
 `AFDATA.DR1` is an explicitly simplified, doorway-only derivative of the
 historical input. It retains the two nodes, DOR element, and `link-11`, but
 omits the ten PLR links. It is not the full historical DR1 input, and its

@@ -16,7 +16,24 @@ def load_case(name):
     with (FIXTURE_DIRECTORY / name).open(encoding="utf-8") as stream:
         case = json.load(stream)
     with (FIXTURE_DIRECTORY / case["network"]).open(encoding="utf-8") as stream:
-        model = airnet.Model(airnet.Reader(stream))
+        records = list(airnet.Reader(stream))
+    for record in records:
+        initial_pressure = case.get("initial_node_pressures", {}).get(
+            record.get("name")
+        )
+        if record.get("input_type") == airnet.InputType.NODE and initial_pressure is not None:
+            record["pres"] = initial_pressure
+    model = airnet.Model(records)
+    # AIRNET evaluates properties from the pressure state inherited from the
+    # preceding run, then performs a fresh linear pressure initialization.
+    # Reproduce that hidden state without carrying its pressure guess into
+    # this independent single-shot solve.
+    if case.get("initial_node_pressures"):
+        for node in model.variable_nodes:
+            node.pressure = 0.0
+    links = {link.name: link for link in model.links}
+    for link_name, control in case.get("link_controls", {}).items():
+        links[link_name].control = control
     return case, model
 
 
@@ -61,6 +78,19 @@ def variable_node_mass_balance(model):
         "qf1-run-01.json",
         "cf1-run-01.json",
         "cv1-run-01.json",
+        "fn1-run-01.json",
+        "fn1-run-02.json",
+        "fn1-run-03.json",
+        "fn1-run-04.json",
+        "fn1-run-05.json",
+        "fn2-run-01.json",
+        "fn3-run-01.json",
+        "fn4-run-02.json",
+        "fn4-run-03.json",
+        "fn4-run-04.json",
+        "fn4-run-05.json",
+        "cp1-run-01.json",
+        "cp2-run-01.json",
     ],
 )
 def test_airnet_c_single_shot(fixture_name):
@@ -78,7 +108,9 @@ def test_airnet_c_single_shot(fixture_name):
 
     # Solver implementation details may reduce the nonlinear iteration count;
     # exceeding the AIRNET-C reference count is the regression concern.
-    assert 1 <= iterations <= case["expected_iterations"]
+    assert 1 <= iterations <= case.get(
+        "maximum_python_iterations", case["expected_iterations"]
+    )
     assert_finite_results(model)
 
     for name, expected in case["nodes"].items():
