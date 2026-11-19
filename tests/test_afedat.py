@@ -192,17 +192,18 @@ def test_qfr_initialization_returns_flow_and_derivative():
 
 def test_cfr_flow_is_pressure_independent():
     element = Afe_Cfr(flow=1.25)
-    link = SimpleNamespace()
+    link = SimpleNamespace(multiplier=1.0)
 
     assert element.initialization(link, 100.0) == (1.25, 0.0)
     assert element.initialization(link, -100.0) == (1.25, 0.0)
     assert element.jacobian(link, -100.0) == (1, 1.25, 0.0, 0.0, 0.0)
     assert element.jacobian(link, 100.0) == (1, 1.25, 0.0, 0.0, 0.0)
-    assert element.initialization(link, 100.0, multiplier=-1.0) == (
+    link.multiplier = -1.0
+    assert element.initialization(link, 100.0) == (
         -1.25,
         0.0,
     )
-    assert element.jacobian(link, 100.0, multiplier=-1.0) == (
+    assert element.jacobian(link, 100.0) == (
         1,
         -1.25,
         0.0,
@@ -214,7 +215,7 @@ def test_cfr_flow_is_pressure_independent():
 @pytest.mark.parametrize('pressure', [-1.0, 0.0, 0.5])
 def test_ckv_is_closed_at_and_below_cutoff(pressure):
     element = Afe_Ckv(dp0=0.5, coef=10.0)
-    link = SimpleNamespace()
+    link = SimpleNamespace(multiplier=1.0)
 
     assert element.jacobian(link, pressure) == (1, 0.0, 0.0, 0.0, 0.0)
 
@@ -222,12 +223,14 @@ def test_ckv_is_closed_at_and_below_cutoff(pressure):
 def test_ckv_initialization_is_closed():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
 
-    assert element.initialization(SimpleNamespace(), 2.0) == (0.0, 0.0)
+    assert element.initialization(
+        SimpleNamespace(multiplier=1.0), 2.0
+    ) == (0.0, 0.0)
 
 
 def test_ckv_open_flow_and_jacobian_match_finite_difference():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
-    link = SimpleNamespace()
+    link = SimpleNamespace(multiplier=1.0)
     pressure = 2.0
     step = 1.0e-6
 
@@ -248,10 +251,11 @@ def test_ckv_open_flow_and_jacobian_match_finite_difference():
 
 def test_ckv_multiplier_preserves_input_direction_when_link_is_reordered():
     element = Afe_Ckv(dp0=0.5, coef=10.0)
-    link = SimpleNamespace()
+    link = SimpleNamespace(multiplier=1.0)
 
     forward_result = element.jacobian(link, 2.0)
-    reordered_result = element.jacobian(link, -2.0, multiplier=-1.0)
+    link.multiplier = -1.0
+    reordered_result = element.jacobian(link, -2.0)
 
     assert reordered_result[1] == pytest.approx(-forward_result[1])
     assert reordered_result[3] == pytest.approx(forward_result[3])

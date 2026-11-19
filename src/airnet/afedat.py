@@ -34,8 +34,7 @@ class Afe_Plr:
         """
         return 'plr'
 
-    def initialization(self, link, pdrop:float, multiplier:float=1.0,
-                       control:float=1.0):
+    def initialization(self, link, pdrop:float, control:float=1.0):
         """Compute the initialization flow and pressure derivative.
         
         The function computes the linear flow relation used in initialization.
@@ -46,8 +45,6 @@ class Afe_Plr:
             The link object that the linear coefficient is needed for.
         pdrop:
             The pressure drop used to select the upwind air properties.
-        multiplier: optional
-            The multiplier determines how many elements this linkage represents. Defaults to 1.
         control: optional
             The control signal that is used to control flow for some elements. Defaults to 1.
         """
@@ -57,7 +54,7 @@ class Afe_Plr:
             derivative = self.init * link.node1.dvisc
         return derivative * pdrop, derivative
 
-    def flow(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
+    def flow(self, link, pdrop:float, control:float=1.0):
         """Compute the flow through an element.
         
         Parameters
@@ -66,8 +63,6 @@ class Afe_Plr:
             The link object that the linear coefficient is needed for.
         pdrop:
             The pressure drop driving the flow.
-        multiplier: optional
-            The multiplier determines how many elements this linkage represents. Defaults to 1.
         control: optional
             The control signal that is used to control flow for some elements. Defaults to 1.
         """
@@ -90,7 +85,7 @@ class Afe_Plr:
                 f = ft
         return 1, f, 0.0
 
-    def jacobian(self, link, pdrop:float, multiplier:float=1.0, control:float=1.0):
+    def jacobian(self, link, pdrop:float, control:float=1.0):
         """Compute the flow through an element and the associated Jacobian terms.
         
         Parameters
@@ -99,8 +94,6 @@ class Afe_Plr:
             The link object that the linear coefficient is needed for.
         pdrop:
             The pressure drop driving the flow.
-        multiplier: optional
-            The multiplier determines how many elements this linkage represents. Defaults to 1.
         control: optional
             The control signal that is used to control flow for some elements. Defaults to 1.
         """
@@ -158,8 +151,7 @@ class Afe_Dwc:
         """
         return 'dwc'
 
-    def initialization(self, link, pdrop:float, multiplier:float=1.0,
-                       control:float=1.0):
+    def initialization(self, link, pdrop:float, control:float=1.0):
         """Compute AIRNET's laminar initialization flow and derivative."""
         node = link.node0 if pdrop >= 0.0 else link.node1
         derivative = (
@@ -189,8 +181,7 @@ class Afe_Dwc:
             self.f = 0.0032 + 0.221 / math.pow(reynolds, 0.237)
         return self.f
 
-    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
-                 control:float=1.0):
+    def jacobian(self, link, pdrop:float, control:float=1.0):
         """Compute duct mass flow and AIRNET's pressure derivative."""
         node = link.node0 if pdrop >= 0.0 else link.node1
         pressure = abs(pdrop)
@@ -245,11 +236,10 @@ class Afe_Dwc:
             flow = -flow
         return 1, flow, 0.0, jacobian, 0.0
 
-    def flow(self, link, pdrop:float, multiplier:float=1.0,
-             control:float=1.0):
+    def flow(self, link, pdrop:float, control:float=1.0):
         """Compute the one-way duct mass flow."""
         nf, flow0, flow1, _, _ = self.jacobian(
-            link, pdrop, multiplier, control
+            link, pdrop, control=control
         )
         return nf, flow0, flow1
 
@@ -279,14 +269,12 @@ class Afe_Qfr:
         """
         return 'qfr'
 
-    def initialization(self, link, pdrop:float, multiplier:float=1.0,
-                       control:float=1.0):
+    def initialization(self, link, pdrop:float, control:float=1.0):
         """Return the zero-flow initialization flow and derivative."""
         derivative = 1.0 / self.a
         return derivative * pdrop, derivative
 
-    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
-                 control:float=1.0):
+    def jacobian(self, link, pdrop:float, control:float=1.0):
         """Compute quadratic-relation mass flow and its pressure derivative."""
         pressure = abs(pdrop)
         root = math.sqrt(self.a * self.a + 4.0 * self.b * pressure)
@@ -297,11 +285,10 @@ class Afe_Qfr:
         derivative = 1.0 / (self.a + 2.0 * self.b * abs(flow))
         return 1, flow, 0.0, derivative, 0.0
 
-    def flow(self, link, pdrop:float, multiplier:float=1.0,
-             control:float=1.0):
+    def flow(self, link, pdrop:float, control:float=1.0):
         """Compute quadratic-relation mass flow without derivative terms."""
         nf, flow0, flow1, _, _ = self.jacobian(
-            link, pdrop, multiplier, control
+            link, pdrop, control=control
         )
         return nf, flow0, flow1
 
@@ -338,16 +325,14 @@ class Afe_Dor(Afe_Plr):
         drho = link.node0.density - link.node1.density
         return pdrop - 0.5 * self.ht * 9.8 * drho
 
-    def initialization(self, link, pdrop:float, multiplier:float=1.0,
-                       control:float=1.0):
+    def initialization(self, link, pdrop:float, control:float=1.0):
         """Compute the power-law initialization flow and derivative."""
         adjusted_pdrop = self._power_law_pressure_drop(link, pdrop)
         return super().initialization(
-            link, adjusted_pdrop, multiplier, control
+            link, adjusted_pdrop, control=control
         )
 
-    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
-                 control:float=1.0):
+    def jacobian(self, link, pdrop:float, control:float=1.0):
         """Compute the flow through an element and the associated Jacobian terms.
         
         Parameters
@@ -356,8 +341,6 @@ class Afe_Dor(Afe_Plr):
             The link object that the linear coefficient is needed for.
         pdrop:
             The pressure drop driving the flow.
-        multiplier: optional
-            The multiplier determines how many elements this linkage represents. Defaults to 1.
         control: optional
             The control signal that is used to control flow for some elements. Defaults to 1.
         """
@@ -372,7 +355,7 @@ class Afe_Dor(Afe_Plr):
         if self.one_way_flow(link):
             adjusted_pdrop = self._power_law_pressure_drop(link, pdrop)
             return super().jacobian(
-                link, adjusted_pdrop, multiplier, control
+                link, adjusted_pdrop, control=control
             )
 
         y = pdrop / gdrho # Possible two-way flow
@@ -412,11 +395,10 @@ class Afe_Dor(Afe_Plr):
                 df2 = link.node1.sqrt_density * df0
         return nf, f1, f2, df1, df2
 
-    def flow(self, link, pdrop:float, multiplier:float=1.0,
-             control:float=1.0):
+    def flow(self, link, pdrop:float, control:float=1.0):
         """Compute doorway flow without returning derivative terms."""
         nf, flow0, flow1, _, _ = self.jacobian(
-            link, pdrop, multiplier, control
+            link, pdrop, control=control
         )
         return nf, flow0, flow1
 
@@ -434,21 +416,18 @@ class Afe_Cfr:
         """
         return 'cfr'
 
-    def initialization(self, link, pdrop:float, multiplier:float=1.0,
-                       control:float=1.0):
+    def initialization(self, link, pdrop:float, control:float=1.0):
         """Return the initialization flow and its pressure derivative."""
-        return multiplier * self.flow_rate * control, 0.0
+        return link.multiplier * self.flow_rate * control, 0.0
 
-    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
-                 control:float=1.0):
+    def jacobian(self, link, pdrop:float, control:float=1.0):
         """Return the pressure-independent flow and zero derivative."""
-        return 1, multiplier * self.flow_rate * control, 0.0, 0.0, 0.0
+        return 1, link.multiplier * self.flow_rate * control, 0.0, 0.0, 0.0
 
-    def flow(self, link, pdrop:float, multiplier:float=1.0,
-             control:float=1.0):
+    def flow(self, link, pdrop:float, control:float=1.0):
         """Return the pressure-independent mass flow."""
         nf, flow0, flow1, _, _ = self.jacobian(
-            link, pdrop, multiplier, control
+            link, pdrop, control=control
         )
         return nf, flow0, flow1
 
@@ -509,30 +488,27 @@ class Afe_Ckv:
         """
         return 'ckv'
 
-    def initialization(self, link, pdrop:float, multiplier:float=1.0,
-                       control:float=1.0):
+    def initialization(self, link, pdrop:float, control:float=1.0):
         """Return AIRNET's closed-valve initialization relation."""
         return 0.0, 0.0
 
-    def jacobian(self, link, pdrop:float, multiplier:float=1.0,
-                 control:float=1.0):
+    def jacobian(self, link, pdrop:float, control:float=1.0):
         """Compute the positive-input-direction check-valve flow."""
-        pressure_above_cutoff = multiplier * pdrop - self.dp0
+        pressure_above_cutoff = link.multiplier * pdrop - self.dp0
         if pressure_above_cutoff <= 0.0:
             return 1, 0.0, 0.0, 0.0, 0.0
 
         input_flow = math.pow(
             self.coef * pressure_above_cutoff, 1.1
         )
-        flow = multiplier * input_flow
+        flow = link.multiplier * input_flow
         derivative = 1.1 * input_flow / pressure_above_cutoff
         return 1, flow, 0.0, derivative, 0.0
 
-    def flow(self, link, pdrop:float, multiplier:float=1.0,
-             control:float=1.0):
+    def flow(self, link, pdrop:float, control:float=1.0):
         """Compute check-valve flow without derivative terms."""
         nf, flow0, flow1, _, _ = self.jacobian(
-            link, pdrop, multiplier, control
+            link, pdrop, control=control
         )
         return nf, flow0, flow1
 

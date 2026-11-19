@@ -179,7 +179,7 @@ def test_air_movement_rejects_non_finite_element_results(monkeypatch):
     monkeypatch.setattr(
         model.links[0].element,
         'jacobian',
-        lambda link, pdrop, multiplier=1.0: (
+        lambda link, pdrop: (
             1,
             float('nan'),
             0.0,
@@ -214,16 +214,14 @@ class TwoWayElement:
     def type(self):
         return 'two'
 
-    def initialization(self, link, pdrop, multiplier=1.0):
+    def initialization(self, link, pdrop):
         return 2.0 * pdrop, 2.0
 
-    def jacobian(self, link, pdrop, multiplier=1.0):
+    def jacobian(self, link, pdrop):
         return 2, pdrop + 2.0, pdrop - 1.0, 1.0, 1.0
 
-    def flow(self, link, pdrop, multiplier=1.0):
-        nf, flow0, flow1, _, _ = self.jacobian(
-            link, pdrop, multiplier
-        )
+    def flow(self, link, pdrop):
+        nf, flow0, flow1, _, _ = self.jacobian(link, pdrop)
         return nf, flow0, flow1
 
 

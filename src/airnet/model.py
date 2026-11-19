@@ -521,7 +521,7 @@ class Model:
                     link.node0.pressure - link.node1.pressure + link.pdrop
                 )
                 flow, derivative = link.element.initialization(
-                    link, pdrop=pdrop, multiplier=link.multiplier
+                    link, pdrop=pdrop
                 )
                 right_hand_side = -flow
                 if not math.isfinite(derivative) or not math.isfinite(
@@ -559,7 +559,7 @@ class Model:
         for link in self.links:
             pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
             flow, derivative = link.element.initialization(
-                link, pdrop=pdrop, multiplier=link.multiplier
+                link, pdrop=pdrop
             )
             if not math.isfinite(derivative) or not math.isfinite(flow):
                 raise NumericalSolverError(
@@ -652,7 +652,7 @@ class Model:
                 pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
                 if link.node0.variable:
                     nf, link.flow0, link.flow1, df0, df1 = link.element.jacobian(
-                        link, pdrop, multiplier=link.multiplier
+                        link, pdrop
                     )
                     if not all(
                         math.isfinite(value)
@@ -677,9 +677,7 @@ class Model:
                         self.A[link.node0.index, link.node1.index] -= derivative
                         self.A[link.node1.index, link.node0.index] -= derivative
                 else:
-                    nf, link.flow0, link.flow1 = link.element.flow(
-                        link, pdrop, multiplier=link.multiplier
-                    )
+                    nf, link.flow0, link.flow1 = link.element.flow(link, pdrop)
                     if not all(
                         math.isfinite(value)
                         for value in (link.flow0, link.flow1)
@@ -802,4 +800,3 @@ def run_simulate(input_file, verbose=False, global_temperature=None, global_dens
         model.air_movement()
 
     write_results_csv([el for el in model.nodes.values() if el.index is not None], model.links, 'airnetsim.csv')
-
