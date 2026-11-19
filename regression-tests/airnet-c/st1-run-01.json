@@ -1,0 +1,34 @@
+{
+  "case": "ST1",
+  "scenario": "two openings at different attachment heights",
+  "network": "AFDATA.ST1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.ST1",
+  "source_run": 1,
+  "run_control": {
+    "maximum_iterations": 30,
+    "relative_airflow_tolerance": 0.0001,
+    "absolute_airflow_tolerance": 0.000001,
+    "relaxation_coefficient": 0.75
+  },
+  "weather": {
+    "ambient_temperature_c": 20.0,
+    "barometric_pressure_pa": 101325.0,
+    "wind_speed_m_per_s": 0.0,
+    "wind_direction_degrees": 0.0
+  },
+  "expected_iterations": 3,
+  "nodes": {
+    "node-1": {"pressure": 0.0},
+    "node-2": {"pressure": -4.167628}
+  },
+  "links": {
+    "link-1": {"flow_count": 1, "pressure_drop": 4.167628, "flow0": 0.01969223, "flow1": 0.0},
+    "link-2": {"flow_count": 1, "pressure_drop": -4.472792, "flow0": -0.01969226, "flow1": 0.0}
+  },
+  "tolerances": {
+    "relative": 0.000001,
+    "pressure_absolute": 0.000005,
+    "flow_absolute": 0.00000005,
+    "mass_balance_absolute": 0.000001
+  }
+}

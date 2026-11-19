@@ -588,7 +588,6 @@ def test_model_constructs_supported_fan_element():
 @pytest.mark.parametrize(
     ('updates', 'message'),
     [
-        ({'wind': 'wind-profile', 'wpmod': 1.0}, 'wind-pressure behavior'),
         ({'control': 0.5}, 'does not control'),
     ],
 )
@@ -598,6 +597,73 @@ def test_model_rejects_unsupported_link_features(updates, message):
 
     with pytest.raises(airnet.UnsupportedNetworkFeature, match=message):
         airnet.Model(records)
+
+
+def test_model_rejects_missing_wind_profile():
+    records = valid_network_records()
+    record_named(records, 'connection').update(
+        {'wind': 'missing-profile', 'wpmod': 1.0}
+    )
+
+    with pytest.raises(
+        airnet.MissingNetworkReference, match='undefined wind profile'
+    ):
+        airnet.Model(records)
+
+
+def test_model_applies_interpolated_wind_pressure_in_stored_orientation():
+    records = valid_network_records()
+    connection = record_named(records, 'connection')
+    connection.update(
+        {
+            'node-1': 'fixed',
+            'node-2': 'variable',
+            'wind': 'constant',
+            'wpmod': 2.0,
+        }
+    )
+    profile = airnet.WindProfile('constant', (1.0,) * 16)
+
+    model = airnet.Model(
+        records,
+        wind_profiles={'constant': profile},
+        ambient_temperature=20.0,
+        barometric_pressure=101325.0,
+        wind_speed=5.0,
+        wind_direction=11.25,
+    )
+    model.compute_pressure_drops()
+
+    expected_input_pressure = 2.0 * 0.5 * model.ambient_density * 5.0**2
+    # The fixed-to-variable input link is stored variable-to-fixed.
+    assert model.links[0].flipped
+    assert model.links[0].pdrop == pytest.approx(-expected_input_pressure)
+
+
+def test_stack_pressure_uses_average_density_before_flow_direction_is_known():
+    records = valid_network_records()
+    record_named(records, 'fixed')['temp'] = 0.0
+    link = record_named(records, 'connection')
+    link['ht-1'] = 5.0
+    link['ht-2'] = 0.0
+
+    model = airnet.Model(records)
+    model.compute_pressure_drops()
+
+    stored_link = model.links[0]
+    expected = (
+        -9.80 * stored_link.node0.density * stored_link.ht0
+        + 9.80 * stored_link.node1.density * stored_link.ht1
+        + 4.90
+        * (stored_link.node0.density + stored_link.node1.density)
+        * (
+            stored_link.node0.height
+            - stored_link.node1.height
+            + stored_link.ht0
+            - stored_link.ht1
+        )
+    )
+    assert stored_link.pdrop == pytest.approx(expected)
 
 
 def test_model_rejects_nonpositive_link_multiplier():

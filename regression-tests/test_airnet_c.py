@@ -23,7 +23,27 @@ def load_case(name):
         )
         if record.get("input_type") == airnet.InputType.NODE and initial_pressure is not None:
             record["pres"] = initial_pressure
-    model = airnet.Model(records)
+    wind_profiles = None
+    if wind_file := case.get("wind_profiles"):
+        with (FIXTURE_DIRECTORY / wind_file).open(encoding="utf-8") as stream:
+            wind_profiles = airnet.read_wind_profiles(stream)
+    weather = case.get(
+        "weather",
+        {
+            "ambient_temperature_c": 20.0,
+            "barometric_pressure_pa": 101325.0,
+            "wind_speed_m_per_s": 0.0,
+            "wind_direction_degrees": 0.0,
+        },
+    )
+    model = airnet.Model(
+        records,
+        wind_profiles=wind_profiles,
+        ambient_temperature=weather["ambient_temperature_c"],
+        barometric_pressure=weather["barometric_pressure_pa"],
+        wind_speed=weather["wind_speed_m_per_s"],
+        wind_direction=weather["wind_direction_degrees"],
+    )
     # AIRNET evaluates properties from the pressure state inherited from the
     # preceding run, then performs a fresh linear pressure initialization.
     # Reproduce that hidden state without carrying its pressure guess into
@@ -74,7 +94,12 @@ def variable_node_mass_balance(model):
         "pl2-run-01.json",
         "pl3-run-01.json",
         "dw1-run-01.json",
+        "dr1-01-run-01.json",
         "dr1-run-01.json",
+        "st1-run-01.json",
+        "st2-run-01.json",
+        "wp1-run-01.json",
+        "wp2-run-02.json",
         "qf1-run-01.json",
         "cf1-run-01.json",
         "cv1-run-01.json",

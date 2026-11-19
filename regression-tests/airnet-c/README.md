@@ -27,7 +27,12 @@ harness uses it only to establish properties and then resets variable-node
 pressure guesses. Controlled links are recorded explicitly in
 `link_controls`.
 
-`AFDATA.DR1` is an explicitly simplified, doorway-only derivative of the
+`AFDATA.DR1-01` is an explicitly simplified, doorway-only derivative of the
 historical input. It retains the two nodes, DOR element, and `link-11`, but
 omits the ten PLR links. It is not the full historical DR1 input, and its
 expected equilibrium comes from a reviewed AIRNET-C run of the reduced case.
+
+`AFDATA.DR1` is the full historical DR1 network. The distinct `-01` suffix
+keeps the focused doorway-only regression available without displacing the
+canonical historical name. `WIND` is a copy of the historical 16-direction
+coefficient file used by WP1 and WP2.

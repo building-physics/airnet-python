@@ -11,6 +11,7 @@ import scipy
 
 from .afedat import object_lookup
 from .reader import InputType, Reader
+from .wind import WindProfile
 
 
 def devnull(msg: str):
@@ -159,11 +160,51 @@ class Model:
     )
 
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
-                 link_object=Link, global_temperature:float|None=None, global_density:float|None=None):
+                 link_object=Link, global_temperature:float|None=None, global_density:float|None=None,
+                 wind_profiles=None, ambient_temperature:float=20.0,
+                 barometric_pressure:float=101325.0, wind_speed:float=0.0,
+                 wind_direction:float=0.0):
         self.title = ''
         self.nodes = {}
         self.links = []
         self.elements = {}
+        self.ambient_temperature = ambient_temperature
+        self.barometric_pressure = barometric_pressure
+        self.wind_speed = wind_speed
+        self.wind_direction = wind_direction
+        self._environmental_pressure_is_set = False
+        weather_values = (
+            ambient_temperature,
+            barometric_pressure,
+            wind_speed,
+            wind_direction,
+        )
+        if not all(math.isfinite(value) for value in weather_values):
+            raise BadNetwork('Weather values must be finite')
+        if ambient_temperature <= -273.15:
+            raise BadNetwork('Ambient temperature must be above absolute zero')
+        if barometric_pressure <= 0.0:
+            raise BadNetwork('Barometric pressure must be positive')
+        if wind_speed < 0.0:
+            raise BadNetwork('Wind speed cannot be negative')
+        self.ambient_density = (
+            0.0034838 * barometric_pressure / (ambient_temperature + 273.15)
+        )
+        self.wind_profiles = {}
+        if wind_profiles is not None:
+            profiles = (
+                wind_profiles.values()
+                if hasattr(wind_profiles, 'values')
+                else wind_profiles
+            )
+            for profile in profiles:
+                if not isinstance(profile, WindProfile):
+                    raise BadNetwork('Wind profiles must be WindProfile objects')
+                if profile.name in self.wind_profiles:
+                    raise DuplicateNetworkName(
+                        f'Wind profile "{profile.name}" is defined more than once'
+                    )
+                self.wind_profiles[profile.name] = profile
 
         # Copy every record before removing construction-only fields. Reader
         # output is also part of the public API and remains owned by the caller.
@@ -263,10 +304,12 @@ class Model:
             name = link['name']
             wind = link.get('wind')
             wpmod = link.get('wpmod', 0.0)
-            if wind not in (None, 'null') or wpmod != 0.0:
-                raise UnsupportedNetworkFeature(
-                    f'Link "{name}" uses unsupported wind-pressure behavior'
+            if wind not in (None, 'null') and wind not in self.wind_profiles:
+                raise MissingNetworkReference(
+                    f'Link "{name}" references undefined wind profile "{wind}"'
                 )
+            if not math.isfinite(wpmod):
+                raise BadNetwork(f'Link "{name}" wind-pressure modifier must be finite')
             multiplier = link.get('mult', 1.0)
             if not math.isfinite(multiplier) or multiplier <= 0.0:
                 raise BadNetwork(
@@ -321,12 +364,15 @@ class Model:
                 pressure_adjacency[node0_name].add(node1_name)
                 pressure_adjacency[node1_name].add(node0_name)
             flip = not node0.variable and node1.variable
-            if wind == 'null':
+            if wind in (None, 'null'):
                 link['wind'] = None
+            else:
+                link['wind'] = self.wind_profiles[wind]
             if flip:
                 link_node0, link_ht0 = node1, ht1
                 link_node1, link_ht1 = node0, ht0
                 link['mult'] = -link.get('mult', 1.0)
+                link['wpmod'] = -wpmod
             else:
                 link_node0, link_ht0 = node0, ht0
                 link_node1, link_ht1 = node1, ht1
@@ -472,7 +518,7 @@ class Model:
             if global_density is None:
                 # Compute the full set of properties
                 for node in nodes:
-                    node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
+                    node.density = 0.0034838*(self.barometric_pressure+node.pressure)/node.temperature
                     node.sqrt_density = math.sqrt(node.density)
                     node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
                     node.dvisc = node.density / node.viscosity
@@ -488,7 +534,7 @@ class Model:
                 # Set the temperature everywhere
                 for node in nodes:
                     node.temperature = global_temperature
-                    node.density = 0.0034838*(101325.0+node.pressure)/node.temperature
+                    node.density = 0.0034838*(self.barometric_pressure+node.pressure)/node.temperature
                     node.sqrt_density = math.sqrt(node.density)
                     node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
                     node.dvisc = node.density / node.viscosity
@@ -596,9 +642,17 @@ class Model:
                 elif link.flow0 < 0.0:
                     spx = 9.80 * link.node1.density * dhx
                 else:
-                    spx = 4.90 * (link.node0.dens + link.node1.dens) * dhx
-            # Wind pressure contribution goes here
-            link.pdrop =  sp0 + sp1 + spx
+                    spx = 4.90 * (link.node0.density + link.node1.density) * dhx
+            wind_pressure = 0.0
+            if link.wind is not None:
+                dynamic_pressure = 0.5 * self.ambient_density * self.wind_speed**2
+                wind_pressure = (
+                    link.wpmod
+                    * dynamic_pressure
+                    * link.wind.coefficient(self.wind_direction)
+                )
+            link.pdrop = sp0 + sp1 + spx + wind_pressure
+        self._environmental_pressure_is_set = True
 
     def air_movement(self, maxiter:int=100, max_subiter:int=100,
                      tolerance:float=1.0e-8, status_function=devnull,
@@ -653,7 +707,8 @@ class Model:
         if minimum_iterations < 1:
             raise ValueError('Minimum iterations must be at least 1')
 
-        self.compute_pressure_drops()
+        if not self._environmental_pressure_is_set:
+            self.compute_pressure_drops()
         status_function('iter | Max Resid|\n==== ===============')
         previous_relative_residual = 0.0
         for iter in range(1,maxiter+1):

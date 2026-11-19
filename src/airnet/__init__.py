@@ -16,3 +16,4 @@ from .model import (
 )
 from .reader import BadNetworkInput, InputType, Reader
 from .testing import compare_csvs, temporary_directory
+from .wind import WindProfile, read_wind_profiles
