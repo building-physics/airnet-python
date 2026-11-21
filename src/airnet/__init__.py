@@ -7,13 +7,17 @@ from .model import (
     InitializationError,
     LinearSolverError,
     MissingNetworkReference,
+    MissingWeather,
     Model,
     NonlinearSolverError,
     NumericalSolverError,
+    Solver,
     SolverError,
+    StaleSolverError,
     UnsupportedNetworkFeature,
     run_simulate,
 )
 from .reader import BadNetworkInput, InputType, Reader
 from .testing import compare_csvs, temporary_directory
+from .weather import BadWeather, Weather
 from .wind import WindProfile, read_wind_profiles

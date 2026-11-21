@@ -70,11 +70,13 @@ def load_case(name):
     )
     model = airnet.Model(
         records,
-        wind_profiles=wind_profiles,
-        ambient_temperature=weather["ambient_temperature_c"],
-        barometric_pressure=weather["barometric_pressure_pa"],
-        wind_speed=weather["wind_speed_m_per_s"],
-        wind_direction=weather["wind_direction_degrees"],
+        weather=airnet.Weather(
+            ambient_temperature=weather["ambient_temperature_c"],
+            barometric_pressure=weather["barometric_pressure_pa"],
+            wind_speed=weather["wind_speed_m_per_s"],
+            wind_direction=weather["wind_direction_degrees"],
+            wind_profiles=wind_profiles or {},
+        ),
     )
     # AIRNET evaluates properties from the pressure state inherited from the
     # preceding run, then performs a fresh linear pressure initialization.
@@ -151,11 +153,13 @@ def load_collection_run(fixture_name, run_number):
     weather = run["weather"]
     model = airnet.Model(
         records,
-        wind_profiles=wind_profiles,
-        ambient_temperature=weather["ambient_temperature_c"],
-        barometric_pressure=weather["barometric_pressure_pa"],
-        wind_speed=weather["wind_speed_m_per_s"],
-        wind_direction=weather["wind_direction_degrees"],
+        weather=airnet.Weather(
+            ambient_temperature=weather["ambient_temperature_c"],
+            barometric_pressure=weather["barometric_pressure_pa"],
+            wind_speed=weather["wind_speed_m_per_s"],
+            wind_direction=weather["wind_direction_degrees"],
+            wind_profiles=wind_profiles or {},
+        ),
     )
     if run_number > 1:
         for node in model.variable_nodes:

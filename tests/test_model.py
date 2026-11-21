@@ -42,7 +42,7 @@ def test_model_creation():
     for item in reader:
         items.append(item)
 
-    model = airnet.Model(items)
+    model = airnet.Model(items, weather=airnet.Weather())
     assert len(model.nodes) == 4
     assert len(model.variable_nodes) == 2
     assert len(model.links) == 3
@@ -118,7 +118,9 @@ def test_model_creation():
 
 
 def test_linear_initialization_uses_flow_direction_density():
-    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    model = airnet.Model(
+        airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
+    )
 
     model.initialize(maxiter=10)
     assert model.nodes['node-2'].pressure == pytest.approx(-100.0 / 3.0)
@@ -126,7 +128,9 @@ def test_linear_initialization_uses_flow_direction_density():
 
 
 def test_air_movement_reports_nonconvergence():
-    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    model = airnet.Model(
+        airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
+    )
     model.initialize(maxiter=10)
 
     with pytest.raises(airnet.NonlinearSolverError, match='failed to converge') as error:
@@ -139,7 +143,9 @@ def test_air_movement_reports_nonconvergence():
 
 
 def test_initialization_reports_linear_solver_failure(monkeypatch):
-    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    model = airnet.Model(
+        airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
+    )
 
     def fail_linear_solve(matrix, right_hand_side, **kwargs):
         return right_hand_side, 7
@@ -155,7 +161,9 @@ def test_initialization_reports_linear_solver_failure(monkeypatch):
 
 
 def test_air_movement_reports_linear_correction_failure(monkeypatch):
-    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    model = airnet.Model(
+        airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
+    )
     model.initialize(maxiter=10)
     model.nodes['node-2'].pressure += 1.0
 
@@ -173,7 +181,9 @@ def test_air_movement_reports_linear_correction_failure(monkeypatch):
 
 
 def test_air_movement_rejects_non_finite_element_results(monkeypatch):
-    model = airnet.Model(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+    model = airnet.Model(
+        airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
+    )
     model.initialize(maxiter=10)
 
     monkeypatch.setattr(
@@ -278,7 +288,9 @@ def two_way_network(variable_node=True):
 
 def test_air_movement_assembles_two_way_flow_and_jacobian_components():
     model = airnet.Model(
-        two_way_network(), element_lookup={'two': TwoWayElement}
+        two_way_network(),
+        element_lookup={'two': TwoWayElement},
+        weather=airnet.Weather(),
     )
     model.initialize(maxiter=10)
 
@@ -295,6 +307,7 @@ def test_air_movement_retains_fixed_to_fixed_two_way_flows():
     model = airnet.Model(
         two_way_network(variable_node=False),
         element_lookup={'two': TwoWayElement},
+        weather=airnet.Weather(),
     )
 
     iterations = model.air_movement(maxiter=10)
@@ -369,7 +382,7 @@ def test_cfr_uses_negative_multiplier_when_link_is_reordered():
             },
         ]
     )
-    model = airnet.Model(records)
+    model = airnet.Model(records, weather=airnet.Weather())
 
     model.initialize(maxiter=10)
 
@@ -413,7 +426,7 @@ def test_ckv_uses_negative_multiplier_when_link_is_reordered():
             },
         ]
     )
-    model = airnet.Model(records)
+    model = airnet.Model(records, weather=airnet.Weather())
 
     model.initialize(maxiter=10)
     model.air_movement(maxiter=50)
@@ -442,7 +455,7 @@ def test_qfr_uses_passive_element_initialization_sign():
             'b': 3.0,
         }
     )
-    model = airnet.Model(records)
+    model = airnet.Model(records, weather=airnet.Weather())
 
     model.initialize(maxiter=10)
 
@@ -616,10 +629,14 @@ def test_model_rejects_missing_wind_profile():
         {'wind': 'missing-profile', 'wpmod': 1.0}
     )
 
+    model = airnet.Model(records)
+
     with pytest.raises(
         airnet.MissingNetworkReference, match='undefined wind profile'
     ):
-        airnet.Model(records)
+        model.weather = airnet.Weather()
+
+    assert model.weather is None
 
 
 def test_model_applies_interpolated_wind_pressure_in_stored_orientation():
@@ -635,17 +652,17 @@ def test_model_applies_interpolated_wind_pressure_in_stored_orientation():
     )
     profile = airnet.WindProfile('constant', (1.0,) * 16)
 
-    model = airnet.Model(
-        records,
-        wind_profiles={'constant': profile},
+    weather = airnet.Weather(
         ambient_temperature=20.0,
         barometric_pressure=101325.0,
         wind_speed=5.0,
         wind_direction=11.25,
+        wind_profiles={'constant': profile},
     )
+    model = airnet.Model(records, weather=weather)
     model.compute_pressure_drops()
 
-    expected_input_pressure = 2.0 * 0.5 * model.ambient_density * 5.0**2
+    expected_input_pressure = 2.0 * 0.5 * weather.ambient_density * 5.0**2
     # The fixed-to-variable input link is stored variable-to-fixed.
     assert model.links[0].flipped
     assert model.links[0].pdrop == pytest.approx(-expected_input_pressure)
@@ -658,7 +675,7 @@ def test_stack_pressure_uses_average_density_before_flow_direction_is_known():
     link['ht-1'] = 5.0
     link['ht-2'] = 0.0
 
-    model = airnet.Model(records)
+    model = airnet.Model(records, weather=airnet.Weather())
     model.compute_pressure_drops()
 
     stored_link = model.links[0]
@@ -700,9 +717,80 @@ def test_model_uses_weather_temperature_for_ambient_node():
     records = valid_network_records()
     record_named(records, 'fixed')['type'] = 'a'
 
-    model = airnet.Model(records, ambient_temperature=-5.0)
+    model = airnet.Model(
+        records, weather=airnet.Weather(ambient_temperature=-5.0)
+    )
 
     ambient = model.nodes['fixed']
     assert ambient.ambient
     assert not ambient.variable
     assert ambient.temperature == pytest.approx(268.15)
+
+
+def test_read_airnet_leaves_weather_unbound(tmp_path):
+    input_file = tmp_path / 'network.txt'
+    input_file.write_text(AFDATA_PL2, encoding='utf-8')
+
+    model = airnet.Model.read_airnet(input_file)
+
+    assert model.weather is None
+    with pytest.raises(airnet.MissingWeather, match='assign model.weather'):
+        airnet.Solver(model)
+
+
+def test_weather_binding_is_atomic_when_wind_profile_is_missing():
+    records = valid_network_records()
+    record_named(records, 'connection').update(
+        {'wind': 'constant', 'wpmod': 1.0}
+    )
+    profile = airnet.WindProfile('constant', (1.0,) * 16)
+    original_weather = airnet.Weather(
+        ambient_temperature=10.0,
+        wind_profiles={'constant': profile},
+    )
+    model = airnet.Model(records, weather=original_weather)
+    original_properties = {
+        name: (node.temperature, node.density, node.viscosity)
+        for name, node in model.nodes.items()
+    }
+
+    with pytest.raises(
+        airnet.MissingNetworkReference, match='undefined wind profile'
+    ):
+        model.weather = airnet.Weather(ambient_temperature=-5.0)
+
+    assert model.weather is original_weather
+    assert {
+        name: (node.temperature, node.density, node.viscosity)
+        for name, node in model.nodes.items()
+    } == original_properties
+
+
+def test_solver_delegates_steady_solution_and_rejects_rebound_weather():
+    model = airnet.Model(
+        airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
+    )
+    solver = airnet.Solver(model)
+
+    solver.initialize(maxiter=10)
+    iterations = solver.steady_solve(maxiter=50)
+
+    assert iterations < 5
+    model.weather = airnet.Weather(ambient_temperature=10.0)
+    with pytest.raises(airnet.StaleSolverError, match='create a new Solver'):
+        solver.steady_solve()
+
+
+def test_transient_step_is_explicitly_unsupported_without_model_mutation():
+    model = airnet.Model(
+        airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
+    )
+    solver = airnet.Solver(model)
+    pressures = {name: node.pressure for name, node in model.nodes.items()}
+    flows = [(link.flow0, link.flow1) for link in model.links]
+
+    with pytest.raises(NotImplementedError, match='does not define a transient'):
+        solver.transient_step(60.0)
+
+    assert {name: node.pressure for name, node in model.nodes.items()} == pressures
+    assert [(link.flow0, link.flow1) for link in model.links] == flows

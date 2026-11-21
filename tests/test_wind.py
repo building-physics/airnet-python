@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2023-present Oak Ridge National Laboratory, managed by UT-Battelle
 #
 # SPDX-License-Identifier: BSD-3-Clause
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 import airnet
@@ -35,3 +37,34 @@ def test_wind_profile_requires_sixteen_finite_coefficients():
 def test_read_wind_profiles_reports_incomplete_profile():
     with pytest.raises(airnet.BadNetworkInput, match='fewer than 16'):
         airnet.read_wind_profiles(['incomplete 1.0 2.0'])
+
+
+def test_weather_is_immutable_and_owns_an_immutable_profile_mapping():
+    profile = airnet.WindProfile('constant', (1.0,) * 16)
+    weather = airnet.Weather(
+        ambient_temperature=10.0,
+        wind_profiles={'ignored-key': profile},
+    )
+
+    assert weather.ambient_density == pytest.approx(
+        0.0034838 * 101325.0 / 283.15
+    )
+    assert weather.wind_profiles['constant'] is profile
+    with pytest.raises(FrozenInstanceError):
+        weather.wind_speed = 5.0
+    with pytest.raises(TypeError):
+        weather.wind_profiles['another'] = profile
+
+
+@pytest.mark.parametrize(
+    ('kwargs', 'message'),
+    [
+        ({'ambient_temperature': -273.15}, 'absolute zero'),
+        ({'barometric_pressure': 0.0}, 'must be positive'),
+        ({'wind_speed': -1.0}, 'cannot be negative'),
+        ({'wind_direction': float('nan')}, 'must be finite'),
+    ],
+)
+def test_weather_rejects_invalid_environmental_inputs(kwargs, message):
+    with pytest.raises(airnet.BadWeather, match=message):
+        airnet.Weather(**kwargs)

@@ -86,6 +86,7 @@ def simulate(
         )
     except (
         OSError,
+        airnet.BadWeather,
         airnet.BadNetworkInput,
         airnet.BadNetwork,
         airnet.SolverError,

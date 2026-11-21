@@ -10,15 +10,18 @@ drops.
 Calculation sequence
 --------------------
 
-A single run has four stages:
+A single run has five stages:
 
-#. :class:`airnet.reader.Reader` parses the legacy network records.
-#. :class:`airnet.model.Model` validates references and constructs nodes, elements,
-   links, environmental pressure terms, and the sparse system.
-#. :meth:`airnet.model.Model.initialize` obtains an initial pressure state using
-   each element's linear representation.
-#. :meth:`airnet.model.Model.air_movement` performs the nonlinear airflow solve and
-   either returns an iteration count or raises a solver exception.
+#. :meth:`airnet.model.Model.read_airnet` parses and validates the legacy
+   network without inventing weather that is absent from the AIRNET file.
+#. An immutable :class:`airnet.weather.Weather` is assigned to
+   :attr:`airnet.model.Model.weather`. This validates wind-profile references
+   and establishes weather-dependent physical properties.
+#. :class:`airnet.model.Solver` is constructed for the weather-bound model.
+#. :meth:`airnet.model.Solver.initialize` obtains an initial pressure state
+   using each element's linear representation.
+#. :meth:`airnet.model.Solver.steady_solve` performs the nonlinear airflow
+   solve and either returns an iteration count or raises a solver exception.
 
 The model never reports a failed or non-converged solve as success. CSV output
 is written only after the nonlinear convergence criteria are satisfied.
@@ -31,8 +34,8 @@ Python implementation intentionally differs in software structure:
 
 * elements are objects with ``flow``, ``calculate``, and ``linearize``
   operations;
-* parsing, model construction, numerical solution, and presentation are
-  separate;
+* network data, environmental inputs, numerical solution, and presentation
+  have separate ``Model``, ``Weather``, and ``Solver`` responsibilities;
 * invalid references and numerical failures raise explicit exceptions; and
 * regression tests compare structured numerical results rather than report
   typography or interactive transcripts.

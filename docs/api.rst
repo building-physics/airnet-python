@@ -16,7 +16,14 @@ Model and solver
 ----------------
 
 .. automodule:: airnet.model
-   :members: Node, Link, Model, BadNetwork, DuplicateNetworkName, MissingNetworkReference, UnsupportedNetworkFeature, SolverError, LinearSolverError, InitializationError, NonlinearSolverError, NumericalSolverError, write_results_csv, run_simulate
+   :members: Node, Link, Model, Solver, BadNetwork, DuplicateNetworkName, MissingNetworkReference, MissingWeather, UnsupportedNetworkFeature, SolverError, StaleSolverError, LinearSolverError, InitializationError, NonlinearSolverError, NumericalSolverError, write_results_csv, run_simulate
+   :show-inheritance:
+
+Weather
+-------
+
+.. automodule:: airnet.weather
+   :members: Weather, BadWeather
    :show-inheritance:
 
 Input reader

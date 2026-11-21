@@ -69,7 +69,8 @@ Environmental and solver behavior
      - ST1, ST2, and full DR1.
    * - Ambient node and weather
      - Supported
-     - 133 and the weather-varied regression collections.
+     - Immutable Weather binding; 133 and the weather-varied regression
+       collections.
    * - 16-direction wind profiles
      - Supported
      - All WP1 and WP2 directions, including interpolation and wraparound.

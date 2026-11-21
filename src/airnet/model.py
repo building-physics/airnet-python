@@ -4,13 +4,15 @@
 from __future__ import annotations
 
 import math
+from os import PathLike
 
 import numpy
 import scipy
 
 from .afedat import object_lookup
 from .reader import InputType, Reader
-from .wind import WindProfile, read_wind_profiles
+from .weather import Weather
+from .wind import read_wind_profiles
 
 
 def devnull(msg: str):
@@ -96,6 +98,10 @@ class UnsupportedNetworkFeature(BadNetwork):
     """Raised when input requests behavior that is not implemented."""
 
 
+class MissingWeather(BadNetwork):
+    """Raised when numerical work is requested without bound weather."""
+
+
 class SolverError(RuntimeError):
     """Base class for explicit airflow-solver failures."""
 
@@ -153,60 +159,63 @@ class NumericalSolverError(SolverError):
     """Raised when an element or solver produces a non-finite value."""
 
 
+class StaleSolverError(SolverError):
+    """Raised when a model's weather changes after solver construction."""
+
+
 class Model:
-    """A class containing nodes, links, and other data representing a pressure network.
+    """Physical network, environmental binding, and current solution state.
+
+    AIRNET network records may be constructed directly or read with
+    :meth:`read_airnet`. Weather is bound separately through :attr:`weather`.
     """
     supported_element_types = frozenset(
         {'plr', 'dwc', 'qfr', 'dor', 'cfr', 'fan', 'cpf', 'ckv'}
     )
 
+    @staticmethod
+    def read_airnet(
+        input_source,
+        *,
+        element_lookup: dict = object_lookup,
+        node_object=Node,
+        link_object=Link,
+        global_temperature: float | None = None,
+        global_density: float | None = None,
+    ):
+        """Read an AIRNET network source without binding run weather.
+
+        ``input_source`` may be a path or an open text stream. AIRNET weather
+        and wind coefficients are separate run inputs, so the returned model's
+        :attr:`weather` is always ``None``.
+        """
+        options = {
+            'element_lookup': element_lookup,
+            'node_object': node_object,
+            'link_object': link_object,
+            'global_temperature': global_temperature,
+            'global_density': global_density,
+        }
+        if hasattr(input_source, 'read'):
+            return Model(Reader(input_source), **options)
+        if not isinstance(input_source, (str, bytes, PathLike)):
+            raise TypeError('AIRNET input source must be a path or text stream')
+        with open(input_source, encoding='utf-8') as input_stream:
+            return Model(Reader(input_stream), **options)
+
     def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
                  link_object=Link, global_temperature:float|None=None, global_density:float|None=None,
-                 wind_profiles=None, ambient_temperature:float=20.0,
-                 barometric_pressure:float=101325.0, wind_speed:float=0.0,
-                 wind_direction:float=0.0):
+                 weather:Weather|None=None):
         self.title = ''
         self.nodes = {}
         self.links = []
         self.elements = {}
-        self.ambient_temperature = ambient_temperature
-        self.barometric_pressure = barometric_pressure
-        self.wind_speed = wind_speed
-        self.wind_direction = wind_direction
+        self._weather = None
+        self._weather_revision = 0
+        self._global_temperature = global_temperature
+        self._global_density = global_density
         self._environmental_pressure_is_set = False
         self._pressure_drop_node_pressures = None
-        weather_values = (
-            ambient_temperature,
-            barometric_pressure,
-            wind_speed,
-            wind_direction,
-        )
-        if not all(math.isfinite(value) for value in weather_values):
-            raise BadNetwork('Weather values must be finite')
-        if ambient_temperature <= -273.15:
-            raise BadNetwork('Ambient temperature must be above absolute zero')
-        if barometric_pressure <= 0.0:
-            raise BadNetwork('Barometric pressure must be positive')
-        if wind_speed < 0.0:
-            raise BadNetwork('Wind speed cannot be negative')
-        self.ambient_density = (
-            0.0034838 * barometric_pressure / (ambient_temperature + 273.15)
-        )
-        self.wind_profiles = {}
-        if wind_profiles is not None:
-            profiles = (
-                wind_profiles.values()
-                if hasattr(wind_profiles, 'values')
-                else wind_profiles
-            )
-            for profile in profiles:
-                if not isinstance(profile, WindProfile):
-                    raise BadNetwork('Wind profiles must be WindProfile objects')
-                if profile.name in self.wind_profiles:
-                    raise DuplicateNetworkName(
-                        f'Wind profile "{profile.name}" is defined more than once'
-                    )
-                self.wind_profiles[profile.name] = profile
 
         # Copy every record before removing construction-only fields. Reader
         # output is also part of the public API and remains owned by the caller.
@@ -235,8 +244,6 @@ class Model:
                 node_type = record.pop('type', 'c')
                 if node_type not in {'a', 'c', 'v'}:
                     raise BadNetwork(f'Node "{name}" has invalid type "{node_type}"')
-                if node_type == 'a':
-                    record['temp'] = ambient_temperature
                 try:
                     self.nodes[name] = node_object(
                         variable=node_type == 'v', ambient=node_type == 'a', **record
@@ -304,10 +311,6 @@ class Model:
             name = link['name']
             wind = link.get('wind')
             wpmod = link.get('wpmod', 0.0)
-            if wind not in (None, 'null') and wind not in self.wind_profiles:
-                raise MissingNetworkReference(
-                    f'Link "{name}" references undefined wind profile "{wind}"'
-                )
             if not math.isfinite(wpmod):
                 raise BadNetwork(f'Link "{name}" wind-pressure modifier must be finite')
             multiplier = link.get('mult', 1.0)
@@ -367,7 +370,7 @@ class Model:
             if wind in (None, 'null'):
                 link['wind'] = None
             else:
-                link['wind'] = self.wind_profiles[wind]
+                link['wind'] = wind
             if flip:
                 link_node0, link_ht0 = node1, ht1
                 link_node1, link_ht1 = node0, ht0
@@ -456,8 +459,99 @@ class Model:
         self.A = scipy.sparse.csr_matrix(matrix)
         self.x = numpy.zeros([self.size, 1], dtype=numpy.double)
 
-        self.set_properties(self.nodes.values(), global_temperature=global_temperature,
-                            global_density=global_density)
+        if weather is not None:
+            self.weather = weather
+
+    @property
+    def weather(self) -> Weather | None:
+        """Environmental inputs currently bound to this model."""
+        return self._weather
+
+    @weather.setter
+    def weather(self, weather: Weather | None):
+        if weather is None:
+            self._weather = None
+            self._weather_revision += 1
+            self._environmental_pressure_is_set = False
+            self._pressure_drop_node_pressures = None
+            return
+        if not isinstance(weather, Weather):
+            raise TypeError('Model weather must be a Weather object or None')
+
+        for link in self.links:
+            if link.wind is not None and link.wind not in weather.wind_profiles:
+                raise MissingNetworkReference(
+                    f'Link "{link.name}" references undefined wind profile '
+                    f'"{link.wind}"'
+                )
+
+        property_states = self._property_states(
+            self.nodes.values(),
+            weather,
+            global_temperature=self._global_temperature,
+            global_density=self._global_density,
+        )
+        self._weather = weather
+        self._apply_property_states(property_states)
+        self._weather_revision += 1
+        self._environmental_pressure_is_set = False
+        self._pressure_drop_node_pressures = None
+
+    def _require_weather(self) -> Weather:
+        if self.weather is None:
+            raise MissingWeather(
+                'Model has no weather; assign model.weather before solving'
+            )
+        return self.weather
+
+    @staticmethod
+    def _apply_property_states(property_states):
+        for node, temperature, density, viscosity in property_states:
+            node.temperature = temperature
+            node.density = density
+            node.sqrt_density = math.sqrt(density)
+            node.viscosity = viscosity
+            node.dvisc = density / viscosity
+
+    @staticmethod
+    def _property_states(
+        nodes,
+        weather,
+        *,
+        global_temperature=None,
+        global_density=None,
+    ):
+        property_states = []
+        for node in nodes:
+            if global_temperature is not None:
+                temperature = global_temperature
+            elif node.ambient:
+                temperature = weather.ambient_temperature + 273.15
+            else:
+                temperature = node.temperature
+
+            if not math.isfinite(temperature) or temperature <= 0.0:
+                raise BadNetwork(
+                    f'Node "{node.name}" temperature must be finite and positive'
+                )
+            density = (
+                global_density
+                if global_density is not None
+                else 0.0034838
+                * (weather.barometric_pressure + node.pressure)
+                / temperature
+            )
+            if not math.isfinite(density) or density <= 0.0:
+                raise BadNetwork(
+                    f'Node "{node.name}" density must be finite and positive'
+                )
+            viscosity = 1.71432e-5 + 4.828e-8 * (temperature - 273.15)
+            if not math.isfinite(viscosity) or viscosity <= 0.0:
+                raise BadNetwork(
+                    f'Node "{node.name}" viscosity must be finite and positive'
+                )
+            property_states.append((node, temperature, density, viscosity))
+        return property_states
 
     def summary(self):
         """Summarize the pressure network in the model.
@@ -514,38 +608,14 @@ class Model:
         global_density: optional
             If not None, use this density everywhere.
         """
-        if global_temperature is None:
-            if global_density is None:
-                # Compute the full set of properties
-                for node in nodes:
-                    node.density = 0.0034838*(self.barometric_pressure+node.pressure)/node.temperature
-                    node.sqrt_density = math.sqrt(node.density)
-                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
-                    node.dvisc = node.density / node.viscosity
-            else:
-                # Set the density everywhere
-                for node in nodes:
-                    node.density = global_density
-                    node.sqrt_density = math.sqrt(node.density)
-                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
-                    node.dvisc = node.density / node.viscosity
-        else:
-            if global_density is None:
-                # Set the temperature everywhere
-                for node in nodes:
-                    node.temperature = global_temperature
-                    node.density = 0.0034838*(self.barometric_pressure+node.pressure)/node.temperature
-                    node.sqrt_density = math.sqrt(node.density)
-                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
-                    node.dvisc = node.density / node.viscosity
-            else:
-                # Set the temperature and density everywhere
-                for node in nodes:
-                    node.temperature = global_temperature
-                    node.density = global_density
-                    node.sqrt_density = math.sqrt(node.density)
-                    node.viscosity = 1.71432e-5 + 4.828E-8 * (node.temperature - 273.15)
-                    node.dvisc = node.density / node.viscosity
+        weather = self._require_weather()
+        property_states = self._property_states(
+            nodes,
+            weather,
+            global_temperature=global_temperature,
+            global_density=global_density,
+        )
+        self._apply_property_states(property_states)
 
     def initialize(self, maxiter:int=100):
         """Initialize the flow network.
@@ -565,6 +635,7 @@ class Model:
             If initialization produces a non-finite coefficient, solution,
             or flow.
         """
+        self._require_weather()
         if maxiter < 1:
             raise ValueError('Maximum initialization iterations must be at least 1')
 
@@ -637,6 +708,7 @@ class Model:
     
     def compute_pressure_drops(self):
         """Compute the pressure drop across all the links in the model."""
+        weather = self._require_weather()
         for link in self.links:
             # Stack contribution
             sp0 = -9.80 * link.node0.density * link.ht0
@@ -652,11 +724,15 @@ class Model:
                     spx = 4.90 * (link.node0.density + link.node1.density) * dhx
             wind_pressure = 0.0
             if link.wind is not None:
-                dynamic_pressure = 0.5 * self.ambient_density * self.wind_speed**2
+                dynamic_pressure = (
+                    0.5 * weather.ambient_density * weather.wind_speed**2
+                )
                 wind_pressure = (
                     link.wpmod
                     * dynamic_pressure
-                    * link.wind.coefficient(self.wind_direction)
+                    * weather.wind_profiles[link.wind].coefficient(
+                        weather.wind_direction
+                    )
                 )
             link.pdrop = sp0 + sp1 + spx + wind_pressure
         self._environmental_pressure_is_set = True
@@ -737,6 +813,7 @@ class Model:
         NumericalSolverError
             If an element or linear solve produces a non-finite value.
         """
+        self._require_weather()
         if maxiter < 1:
             raise ValueError('Maximum nonlinear iterations must be at least 1')
         if max_subiter < 1:
@@ -885,6 +962,60 @@ class Model:
             relative_tolerance=relative_tolerance,
         )
 
+
+class Solver:
+    """Numerical interface for initializing and solving a weather-bound model.
+
+    The solver updates pressure and flow state on its model. Rebinding the
+    model's weather invalidates the solver, so each environmental scenario
+    requires a newly constructed solver.
+    """
+
+    def __init__(self, model: Model):
+        if not isinstance(model, Model):
+            raise TypeError('Solver model must be a Model object')
+        model._require_weather()
+        self.model = model
+        self._weather_revision = model._weather_revision
+
+    def _require_current_weather(self):
+        self.model._require_weather()
+        if self.model._weather_revision != self._weather_revision:
+            raise StaleSolverError(
+                'Model weather changed after Solver construction; create a new Solver'
+            )
+
+    def initialize(self, maxiter: int = 100):
+        """Initialize model pressures using element linearizations."""
+        self._require_current_weather()
+        return self.model.initialize(maxiter=maxiter)
+
+    def steady_solve(
+        self,
+        maxiter: int = 100,
+        max_subiter: int = 100,
+        tolerance: float = 1.0e-8,
+        status_function=devnull,
+        relative_tolerance: float | None = None,
+        relaxation: float = 1.0,
+        minimum_iterations: int = 1,
+    ):
+        """Solve the model's steady airflow equations."""
+        self._require_current_weather()
+        return self.model.air_movement(
+            maxiter=maxiter,
+            max_subiter=max_subiter,
+            tolerance=tolerance,
+            status_function=status_function,
+            relative_tolerance=relative_tolerance,
+            relaxation=relaxation,
+            minimum_iterations=minimum_iterations,
+        )
+
+    def transient_step(self, *args, **kwargs):
+        """Report that AIRNET has no transient airflow formulation."""
+        raise NotImplementedError('AIRNET does not define a transient solve')
+
 def write_results_csv(nodes, links, csv_file_name):
     """Write node and link results in airnet's CSV interchange format."""
     with open(csv_file_name, 'w', encoding='utf-8', newline='') as output:
@@ -949,21 +1080,25 @@ def run_simulate(
         with open(wind_file, encoding='utf-8') as wind_stream:
             wind_profiles = read_wind_profiles(wind_stream)
 
-    model = Model(
-        items,
-        global_temperature=global_temperature,
-        global_density=global_density,
-        wind_profiles=wind_profiles,
+    weather = Weather(
         ambient_temperature=ambient_temperature,
         barometric_pressure=barometric_pressure,
         wind_speed=wind_speed,
         wind_direction=wind_direction,
+        wind_profiles=wind_profiles or {},
+    )
+    model = Model(
+        items,
+        global_temperature=global_temperature,
+        global_density=global_density,
+        weather=weather,
     )
     if verbose:
         print(model.summary())
 
-    model.initialize(maxiter=initialization_iterations)
-    iterations = model.air_movement(
+    solver = Solver(model)
+    solver.initialize(maxiter=initialization_iterations)
+    iterations = solver.steady_solve(
         maxiter=maximum_iterations,
         max_subiter=maximum_linear_iterations,
         tolerance=absolute_tolerance,

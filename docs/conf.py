@@ -36,6 +36,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 primary_domain = "py"
 nitpicky = True
 nitpick_ignore = [
+    ("py:class", "collections.abc.Mapping"),
     ("py:class", "enum.Enum"),
     ("py:class", "optional"),
 ]

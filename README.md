@@ -32,6 +32,18 @@ Use `airnet simulate --help` for weather, wind-profile, convergence, and
 relaxation options. `airnet summarize network.txt` reports the contents of an
 input file without solving it.
 
+The explicit Python API separates network, environmental, and numerical state:
+
+```python
+import airnet
+
+model = airnet.Model.read_airnet("network.txt")
+model.weather = airnet.Weather()
+solver = airnet.Solver(model)
+solver.initialize()
+solver.steady_solve()
+```
+
 ## Documentation
 
 The Sphinx documentation combines narrative material from `docs/` with API

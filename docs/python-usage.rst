@@ -36,12 +36,11 @@ The lower-level API separates each stage:
 
    import airnet
 
-   with open("network.txt", encoding="utf-8") as stream:
-       records = list(airnet.Reader(stream))
-
-   model = airnet.Model(records, ambient_temperature=20.0)
-   model.initialize(maxiter=100)
-   iterations = model.air_movement(
+   model = airnet.Model.read_airnet("network.txt")
+   model.weather = airnet.Weather(ambient_temperature=20.0)
+   solver = airnet.Solver(model)
+   solver.initialize(maxiter=100)
+   iterations = solver.steady_solve(
        maxiter=100,
        max_subiter=100,
        tolerance=1.0e-8,
@@ -49,6 +48,25 @@ The lower-level API separates each stage:
        relaxation=0.75,
        minimum_iterations=2,
    )
+
+AIRNET keeps its network, wind coefficients, and run weather separate.
+Consequently, :meth:`airnet.model.Model.read_airnet` always returns a model
+whose ``weather`` is ``None``. When wind profiles are needed, read the separate
+file and include them in the weather before binding it:
+
+.. code-block:: python
+
+   with open("WIND", encoding="utf-8") as stream:
+       profiles = airnet.read_wind_profiles(stream)
+
+   model.weather = airnet.Weather(
+       wind_speed=8.0,
+       wind_direction=337.5,
+       wind_profiles=profiles,
+   )
+
+Changing ``model.weather`` invalidates an existing solver. Construct a new
+solver for each weather scenario.
 
 Node pressures are in pascals and link flows in kg/s. ``flow0`` and ``flow1``
 are both meaningful for a two-way DOR link; one-way elements return zero in
@@ -60,14 +78,16 @@ Failure handling
 ----------------
 
 Catch :class:`airnet.reader.BadNetworkInput` for syntax problems,
-:class:`airnet.model.BadNetwork` for invalid constructed models, and
-:class:`airnet.model.SolverError` for numerical failure:
+:class:`airnet.weather.BadWeather` for invalid environmental inputs,
+:class:`airnet.model.BadNetwork` for invalid constructed models or missing
+weather, and :class:`airnet.model.SolverError` for numerical failure or a
+solver made stale by rebinding weather:
 
 .. code-block:: python
 
    try:
        model = airnet.run_simulate("network.txt", output_file=None)
-   except (airnet.BadNetworkInput, airnet.BadNetwork) as error:
+   except (airnet.BadNetworkInput, airnet.BadWeather, airnet.BadNetwork) as error:
        print(f"Invalid model: {error}")
    except airnet.SolverError as error:
        print(f"Simulation failed: {error}")

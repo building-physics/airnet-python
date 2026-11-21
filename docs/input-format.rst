@@ -42,7 +42,10 @@ Links
 
 Attachment heights are relative to their nodes. Link order defines the
 positive input direction. The wind modifier scales the dynamic pressure and
-the coefficient interpolated from the selected wind profile.
+the coefficient interpolated from the selected wind profile. The network
+reader retains ``WIND_PROFILE`` as a name because AIRNET stores coefficient
+definitions in a separate file. Assigning :class:`airnet.weather.Weather` to
+the model resolves and validates every referenced profile.
 
 Elements
 --------
