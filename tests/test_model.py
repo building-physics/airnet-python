@@ -44,7 +44,7 @@ def test_model_creation():
 
     model = airnet.Model(items, weather=airnet.Weather())
     assert len(model.nodes) == 4
-    assert len(model.variable_nodes) == 2
+    assert sum(node.variable for node in model.nodes.values()) == 2
     assert len(model.links) == 3
     assert len(model.elements) == 7
 
@@ -65,7 +65,8 @@ def test_model_creation():
     model.set_properties(model.nodes.values(), global_temperature=node_1_temp, global_density=node_1_dens)
     model.nodes['node-4'].pressure = node_4_pressure
 
-    model.initialize(maxiter=10)
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=10)
 
     # Compute the flow we should get (playing a bit loose with the state props involved)
     # f = C1(p1-p2) = C2(p2-p3) = C1(p3-p4) = Ce(p1-p4) = Ce((p1-p2) + (p2-p3) + (p3-p4))
@@ -88,7 +89,7 @@ def test_model_creation():
     
 
     #model.set_variable_properties()
-    iters = model.air_movement(maxiter=50)
+    iters = solver.steady_solve(maxiter=50)
     assert iters < 5
 
     # Compute the flow we should get (playing a bit loose with the state props involved)
@@ -122,7 +123,7 @@ def test_linear_initialization_uses_flow_direction_density():
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
 
-    model.initialize(maxiter=10)
+    airnet.Solver(model).initialize(maxiter=10)
     assert model.nodes['node-2'].pressure == pytest.approx(-100.0 / 3.0)
     assert model.nodes['node-3'].pressure == pytest.approx(-200.0 / 3.0)
 
@@ -131,10 +132,11 @@ def test_air_movement_reports_nonconvergence():
     model = airnet.Model(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
-    model.initialize(maxiter=10)
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=10)
 
     with pytest.raises(airnet.NonlinearSolverError, match='failed to converge') as error:
-        model.air_movement(maxiter=1, tolerance=0.0)
+        solver.steady_solve(maxiter=1, tolerance=0.0)
 
     assert error.value.max_iterations == 1
     assert error.value.maximum_absolute_residual == 0.0
@@ -153,7 +155,7 @@ def test_initialization_reports_linear_solver_failure(monkeypatch):
     monkeypatch.setattr('airnet.model.scipy.sparse.linalg.cg', fail_linear_solve)
 
     with pytest.raises(airnet.InitializationError, match='did not converge') as error:
-        model.initialize(maxiter=5)
+        airnet.Solver(model).initialize(maxiter=5)
 
     assert error.value.info == 7
     assert error.value.phase == 'initialization'
@@ -164,7 +166,8 @@ def test_air_movement_reports_linear_correction_failure(monkeypatch):
     model = airnet.Model(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
-    model.initialize(maxiter=10)
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=10)
     model.nodes['node-2'].pressure += 1.0
 
     def fail_linear_solve(matrix, right_hand_side, **kwargs):
@@ -173,7 +176,7 @@ def test_air_movement_reports_linear_correction_failure(monkeypatch):
     monkeypatch.setattr('airnet.model.scipy.sparse.linalg.cg', fail_linear_solve)
 
     with pytest.raises(airnet.LinearSolverError, match='solver info=-1') as error:
-        model.air_movement(maxiter=10)
+        solver.steady_solve(maxiter=10)
 
     assert error.value.info == -1
     assert error.value.phase == 'nonlinear correction'
@@ -184,7 +187,8 @@ def test_air_movement_rejects_non_finite_element_results(monkeypatch):
     model = airnet.Model(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
-    model.initialize(maxiter=10)
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=10)
 
     monkeypatch.setattr(
         model.links[0].element,
@@ -199,7 +203,7 @@ def test_air_movement_rejects_non_finite_element_results(monkeypatch):
     )
 
     with pytest.raises(airnet.NumericalSolverError, match='link "link-1"'):
-        model.air_movement(maxiter=10)
+        solver.steady_solve(maxiter=10)
 
 
 def test_run_simulate_does_not_write_results_after_initialization_failure(
@@ -212,7 +216,7 @@ def test_run_simulate_does_not_write_results_after_initialization_failure(
     def fail_initialization(self, maxiter=100):
         raise airnet.InitializationError(info=3, max_iterations=maxiter)
 
-    monkeypatch.setattr(airnet.Model, 'initialize', fail_initialization)
+    monkeypatch.setattr(airnet.Solver, 'initialize', fail_initialization)
 
     with pytest.raises(airnet.InitializationError):
         airnet.run_simulate(input_file)
@@ -228,7 +232,12 @@ def test_run_simulate_returns_model_and_writes_selected_output(tmp_path):
     model = airnet.run_simulate(input_file, output_file=output_file)
 
     assert isinstance(model, airnet.Model)
-    assert output_file.read_text(encoding='utf-8').startswith('node header,')
+    output = output_file.read_text(encoding='utf-8')
+    assert output.startswith('node header,')
+    link_1 = next(line for line in output.splitlines() if line.startswith('link, link-1,'))
+    fields = [field.strip() for field in link_1.split(',')]
+    assert float(fields[3]) > 0.0
+    assert float(fields[4]) > 0.0
 
 
 class TwoWayElement:
@@ -292,9 +301,10 @@ def test_air_movement_assembles_two_way_flow_and_jacobian_components():
         element_lookup={'two': TwoWayElement},
         weather=airnet.Weather(),
     )
-    model.initialize(maxiter=10)
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=10)
 
-    iterations = model.air_movement(maxiter=10, minimum_iterations=2)
+    iterations = solver.steady_solve(maxiter=10, minimum_iterations=2)
 
     assert iterations == 2
     assert model.nodes['node-1'].pressure == pytest.approx(-0.5)
@@ -310,7 +320,7 @@ def test_air_movement_retains_fixed_to_fixed_two_way_flows():
         weather=airnet.Weather(),
     )
 
-    iterations = model.air_movement(maxiter=10)
+    iterations = airnet.Solver(model).steady_solve(maxiter=10)
 
     assert iterations == 1
     assert model.links[0].flow_count == 2
@@ -384,14 +394,15 @@ def test_cfr_uses_negative_multiplier_when_link_is_reordered():
     )
     model = airnet.Model(records, weather=airnet.Weather())
 
-    model.initialize(maxiter=10)
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=10)
 
     supply_link = next(link for link in model.links if link.name == 'supply-link')
     assert supply_link.flipped
     assert supply_link.multiplier == -1.0
     assert supply_link.flow0 == -1.0
 
-    model.air_movement(maxiter=20)
+    solver.steady_solve(maxiter=20)
 
     assert supply_link.flow0 == -1.0
 
@@ -428,8 +439,9 @@ def test_ckv_uses_negative_multiplier_when_link_is_reordered():
     )
     model = airnet.Model(records, weather=airnet.Weather())
 
-    model.initialize(maxiter=10)
-    model.air_movement(maxiter=50)
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=10)
+    solver.steady_solve(maxiter=50)
 
     opening_link = next(link for link in model.links if link.name == 'connection')
     valve_link = next(
@@ -457,7 +469,7 @@ def test_qfr_uses_passive_element_initialization_sign():
     )
     model = airnet.Model(records, weather=airnet.Weather())
 
-    model.initialize(maxiter=10)
+    airnet.Solver(model).initialize(maxiter=10)
 
     assert model.nodes['variable'].pressure == pytest.approx(10.0)
     assert model.links[0].flow0 == pytest.approx(0.0)
@@ -660,6 +672,7 @@ def test_model_applies_interpolated_wind_pressure_in_stored_orientation():
         wind_profiles={'constant': profile},
     )
     model = airnet.Model(records, weather=weather)
+    airnet.Solver(model)
     model.compute_pressure_drops()
 
     expected_input_pressure = 2.0 * 0.5 * weather.ambient_density * 5.0**2
@@ -676,6 +689,7 @@ def test_stack_pressure_uses_average_density_before_flow_direction_is_known():
     link['ht-2'] = 0.0
 
     model = airnet.Model(records, weather=airnet.Weather())
+    airnet.Solver(model)
     model.compute_pressure_drops()
 
     stored_link = model.links[0]
@@ -779,6 +793,67 @@ def test_solver_delegates_steady_solution_and_rejects_rebound_weather():
     model.weather = airnet.Weather(ambient_temperature=10.0)
     with pytest.raises(airnet.StaleSolverError, match='create a new Solver'):
         solver.steady_solve()
+
+
+def test_solver_owns_workspace_and_assigns_indices_on_model_nodes():
+    records = valid_network_records()
+    connection = record_named(records, 'connection')
+    connection['node-1'], connection['node-2'] = (
+        connection['node-2'],
+        connection['node-1'],
+    )
+    model = airnet.Model(records, weather=airnet.Weather())
+    link = model.links[0]
+
+    assert model.nodes['variable'].index is None
+    assert link.node0 is model.nodes['fixed']
+    assert not link.flipped
+    for name in ('A', 'x', 'correction', 'size', 'variable_nodes'):
+        assert not hasattr(model, name)
+
+    first = airnet.Solver(model)
+
+    assert model.nodes['variable'].index == 0
+    assert link.node0 is model.nodes['variable']
+    assert link.flipped
+    assert link.multiplier == -1.0
+    assert not hasattr(first, 'variable_nodes')
+    assert first.A.shape == (1, 1)
+    assert first.x.shape == (1, 1)
+    assert first.correction.shape == (1,)
+
+    second = airnet.Solver(model)
+
+    assert second.A is not first.A
+    assert second.x is not first.x
+    assert second.correction is not first.correction
+    assert link.node0 is model.nodes['variable']
+    assert link.multiplier == -1.0
+    first.A.data.fill(7.0)
+    first.x.fill(7.0)
+    first.correction.fill(7.0)
+    assert not (second.A.data == 7.0).all()
+    assert not (second.x == 7.0).all()
+    assert not (second.correction == 7.0).all()
+
+
+def test_input_oriented_link_results_reverse_solver_normalization():
+    records = valid_network_records()
+    connection = record_named(records, 'connection')
+    connection['node-1'], connection['node-2'] = (
+        connection['node-2'],
+        connection['node-1'],
+    )
+    model = airnet.Model(records, weather=airnet.Weather())
+    link = model.links[0]
+    airnet.Solver(model)
+    link.pdrop = -3.0
+    link.flow0 = -2.0
+    link.flow1 = 0.5
+
+    assert link.input_pressure_drop == 3.0
+    assert link.input_flow0 == 2.0
+    assert link.input_flow1 == -0.5
 
 
 def test_transient_step_is_explicitly_unsupported_without_model_mutation():

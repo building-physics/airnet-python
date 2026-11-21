@@ -18,13 +18,17 @@ A single run has five stages:
    :attr:`airnet.model.Model.weather`. This validates wind-profile references
    and establishes weather-dependent physical properties.
 #. :class:`airnet.model.Solver` is constructed for the weather-bound model.
+   It assigns variable-node equation indices, normalizes link orientation when
+   required, and allocates its own sparse numerical workspace.
 #. :meth:`airnet.model.Solver.initialize` obtains an initial pressure state
    using each element's linear representation.
 #. :meth:`airnet.model.Solver.steady_solve` performs the nonlinear airflow
    solve and either returns an iteration count or raises a solver exception.
 
 The model never reports a failed or non-converged solve as success. CSV output
-is written only after the nonlinear convergence criteria are satisfied.
+is written only after the nonlinear convergence criteria are satisfied. Link
+results in that output retain the node ordering and sign convention of the
+AIRNET input even when the solver normalized a link internally.
 
 Relationship to AIRNET
 ----------------------

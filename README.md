@@ -44,6 +44,10 @@ solver.initialize()
 solver.steady_solve()
 ```
 
+Numerical matrices and vectors belong to ``solver``. The solver assigns
+equation indices to the model's variable nodes and may normalize link
+orientation for assembly; CSV results retain the original input link order.
+
 ## Documentation
 
 The Sphinx documentation combines narrative material from `docs/` with API

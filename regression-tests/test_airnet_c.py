@@ -83,7 +83,9 @@ def load_case(name):
     # Reproduce that hidden state without carrying its pressure guess into
     # this independent single-shot solve.
     if case.get("initial_node_pressures"):
-        for node in model.variable_nodes:
+        for node in model.nodes.values():
+            if not node.variable:
+                continue
             node.pressure = 0.0
     links = {link.name: link for link in model.links}
     for link_name, control in case.get("link_controls", {}).items():
@@ -93,12 +95,11 @@ def load_case(name):
 
 def input_oriented_link_values(link):
     """Return link results in the orientation used by the input file."""
-    direction = -1.0 if link.flipped else 1.0
     return {
         "flow_count": link.flow_count,
-        "pressure_drop": direction * link.pdrop,
-        "flow0": direction * link.flow0,
-        "flow1": direction * link.flow1,
+        "pressure_drop": link.input_pressure_drop,
+        "flow0": link.input_flow0,
+        "flow1": link.input_flow1,
     }
 
 
@@ -112,7 +113,9 @@ def assert_finite_results(model):
 
 
 def variable_node_mass_balance(model):
-    residuals = {node.name: 0.0 for node in model.variable_nodes}
+    residuals = {
+        node.name: 0.0 for node in model.nodes.values() if node.variable
+    }
     for link in model.links:
         if link.node0.variable:
             residuals[link.node0.name] += link.flow0 + link.flow1
@@ -162,7 +165,9 @@ def load_collection_run(fixture_name, run_number):
         ),
     )
     if run_number > 1:
-        for node in model.variable_nodes:
+        for node in model.nodes.values():
+            if not node.variable:
+                continue
             node.pressure = 0.0
     return collection, run, model
 
@@ -202,8 +207,9 @@ def test_airnet_c_single_shot(fixture_name):
     case, model = load_case(fixture_name)
     tolerances = case["tolerances"]
 
-    model.initialize(maxiter=case["run_control"]["maximum_iterations"])
-    iterations = model.air_movement(
+    solver = airnet.Solver(model)
+    solver.initialize(maxiter=case["run_control"]["maximum_iterations"])
+    iterations = solver.steady_solve(
         maxiter=case["run_control"]["maximum_iterations"],
         tolerance=case["run_control"]["absolute_airflow_tolerance"],
         relative_tolerance=case["run_control"]["relative_airflow_tolerance"],
@@ -283,20 +289,21 @@ def test_airnet_c_collection_run(fixture_name, run_number):
     collection, run, model = load_collection_run(fixture_name, run_number)
     tolerances = collection["tolerances"]
     run_control = run["run_control"]
+    solver = airnet.Solver(model)
 
     linear_iterations = collection.get(
         "maximum_python_linear_iterations",
-        max(run_control["maximum_iterations"], 10 * model.size),
+        max(run_control["maximum_iterations"], 10 * solver.size),
     )
-    model.initialize(maxiter=linear_iterations)
-    iterations = model.air_movement(
+    solver.initialize(maxiter=linear_iterations)
+    iterations = solver.steady_solve(
         maxiter=run_control["maximum_iterations"],
         tolerance=run_control["absolute_airflow_tolerance"],
         relative_tolerance=run_control["relative_airflow_tolerance"],
         relaxation=run_control["relaxation_coefficient"],
         minimum_iterations=2,
         max_subiter=collection.get(
-            "maximum_python_linear_iterations", max(100, 10 * model.size)
+            "maximum_python_linear_iterations", max(100, 10 * solver.size)
         ),
     )
 

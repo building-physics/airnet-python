@@ -82,6 +82,21 @@ class Link:
         self.flow1 = 0.0
         self.pdrop = 0.0
 
+    @property
+    def input_pressure_drop(self):
+        """Pressure drop expressed in the original AIRNET link order."""
+        return -self.pdrop if self.flipped else self.pdrop
+
+    @property
+    def input_flow0(self):
+        """Primary flow expressed in the original AIRNET link order."""
+        return -self.flow0 if self.flipped else self.flow0
+
+    @property
+    def input_flow1(self):
+        """Secondary flow expressed in the original AIRNET link order."""
+        return -self.flow1 if self.flipped else self.flow1
+
 class BadNetwork(Exception):
     """Raised if the network is bad."""
 
@@ -214,8 +229,6 @@ class Model:
         self._weather_revision = 0
         self._global_temperature = global_temperature
         self._global_density = global_density
-        self._environmental_pressure_is_set = False
-        self._pressure_drop_node_pressures = None
 
         # Copy every record before removing construction-only fields. Reader
         # output is also part of the public API and remains owned by the caller.
@@ -366,29 +379,20 @@ class Model:
             if element.type() not in ['ckv', 'cfr']:
                 pressure_adjacency[node0_name].add(node1_name)
                 pressure_adjacency[node1_name].add(node0_name)
-            flip = not node0.variable and node1.variable
             if wind in (None, 'null'):
                 link['wind'] = None
             else:
                 link['wind'] = wind
-            if flip:
-                link_node0, link_ht0 = node1, ht1
-                link_node1, link_ht1 = node0, ht0
-                link['mult'] = -link.get('mult', 1.0)
-                link['wpmod'] = -wpmod
-            else:
-                link_node0, link_ht0 = node0, ht0
-                link_node1, link_ht1 = node1, ht1
             try:
                 self.links.append(
                     link_object(
-                        node0=link_node0,
-                        ht0=link_ht0,
-                        node1=link_node1,
-                        ht1=link_ht1,
+                        node0=node0,
+                        ht0=ht0,
+                        node1=node1,
+                        ht1=ht1,
                         element=element,
                         **link,
-                        flipped=flip,
+                        flipped=False,
                     )
                 )
             except (TypeError, ValueError) as error:
@@ -420,45 +424,6 @@ class Model:
                     + ', '.join(sorted(component))
                 )
 
-        # Figure out the size of the matrix
-        self.variable_nodes = []
-        count = 0
-        for node in self.nodes.values():
-            if node.variable:
-                node.index = count
-                count += 1
-                self.variable_nodes.append(node)
-        assert count == len(self.variable_nodes)
-        self.size = count
-        row = []
-        col = []
-        data = []
-        for link in self.links:
-            if link.node0.variable:
-                # diagonal term
-                row.append(link.node0.index)
-                col.append(link.node0.index)
-                data.append(1.0)
-                if link.node1.variable:
-                    # diagonal term
-                    row.append(link.node1.index)
-                    col.append(link.node1.index)
-                    data.append(1.0)
-                    # off diagonal terms
-                    row.append(link.node0.index)
-                    col.append(link.node1.index)
-                    data.append(1.0)
-                    # off diagonal terms
-                    row.append(link.node1.index)
-                    col.append(link.node0.index)
-                    data.append(1.0)
-
-        matrix = scipy.sparse.coo_matrix((numpy.array(data, dtype=numpy.double),
-                                          (numpy.array(row), numpy.array(col))),
-                                          shape=(count, count))
-        self.A = scipy.sparse.csr_matrix(matrix)
-        self.x = numpy.zeros([self.size, 1], dtype=numpy.double)
-
         if weather is not None:
             self.weather = weather
 
@@ -472,8 +437,6 @@ class Model:
         if weather is None:
             self._weather = None
             self._weather_revision += 1
-            self._environmental_pressure_is_set = False
-            self._pressure_drop_node_pressures = None
             return
         if not isinstance(weather, Weather):
             raise TypeError('Model weather must be a Weather object or None')
@@ -494,8 +457,6 @@ class Model:
         self._weather = weather
         self._apply_property_states(property_states)
         self._weather_revision += 1
-        self._environmental_pressure_is_set = False
-        self._pressure_drop_node_pressures = None
 
     def _require_weather(self) -> Weather:
         if self.weather is None:
@@ -572,8 +533,9 @@ class Model:
         for key, value in elements.items():
             string += '%s: %d\n' % (key, value)
 
+        variable_count = sum(node.variable for node in self.nodes.values())
         string += '\nNodes: %s\n\nLinks: %s\n' % (len(self.nodes), len(self.links))
-        string += '\nSystem size: %d x %x\n' % (len(self.variable_nodes), len(self.variable_nodes))
+        string += '\nSystem size: %d x %x\n' % (variable_count, variable_count)
         return string
     
     def results_summary(self):
@@ -592,8 +554,9 @@ class Model:
             string += '%4d %s: %e %e %e\n' % (nr, node.name, node.pressure, node.temperature, node.density)
         string += '\n'
     
+        variable_count = sum(node.variable for node in self.nodes.values())
         string += '\nNodes: %s\n\nLinks: %s\n' % (len(self.nodes), len(self.links))
-        string += '\nSystem size: %d x %x\n' % (len(self.variable_nodes), len(self.variable_nodes))
+        string += '\nSystem size: %d x %x\n' % (variable_count, variable_count)
         return string
 
     def set_properties(self, nodes:list, global_temperature:float|None=None, global_density:float|None=None):
@@ -618,7 +581,16 @@ class Model:
         self._apply_property_states(property_states)
 
     def initialize(self, maxiter:int=100):
-        """Initialize the flow network.
+        """Initialize through a temporary :class:`Solver`.
+
+        This compatibility entry point remains until the solver algorithms are
+        moved in the next partitioning slice. New code should construct one
+        solver and call :meth:`Solver.initialize` on it.
+        """
+        return Solver(self).initialize(maxiter=maxiter)
+
+    def _initialize(self, solver, maxiter:int=100):
+        """Run the linear initialization algorithm using solver-owned state.
         
         Compute flows and pressure drops using linear flow representation for all elements.
         
@@ -641,39 +613,12 @@ class Model:
 
         # AIRNET includes stack and wind terms in the pressure drop passed to
         # each element during linear initialization.
-        self.compute_pressure_drops()
-        self.A.data.fill(0.0)
-        self.x.fill(0.0)
-        for link in self.links:
-            if link.node0.variable:
-                pdrop = (
-                    link.node0.pressure - link.node1.pressure + link.pdrop
-                )
-                flow, derivative = link.element.linearize(
-                    link, pdrop=pdrop, control=link.control
-                )
-                right_hand_side = -flow
-                if not math.isfinite(derivative) or not math.isfinite(
-                    right_hand_side
-                ):
-                    raise NumericalSolverError(
-                        f'Element on link "{link.name}" produced a non-finite '
-                        'initialization derivative or residual flow'
-                    )
-                self.x[link.node0.index] += right_hand_side
-                # diagonal term
-                self.A[link.node0.index, link.node0.index] += derivative
-                if link.node1.variable:
-                    self.x[link.node1.index] -= right_hand_side
-                    # diagonal term
-                    self.A[link.node1.index, link.node1.index] += derivative
-                    # off diagonal terms
-                    self.A[link.node0.index, link.node1.index] -= derivative
-                    self.A[link.node1.index, link.node0.index] -= derivative
-        preconditioner = self._linear_preconditioner('initialization')
+        solver._compute_environmental_pressure_drops()
+        solver._assemble_initialization()
+        preconditioner = solver._linear_preconditioner('initialization')
         solution, info = scipy.sparse.linalg.cg(
-            self.A,
-            self.x,
+            solver.A,
+            solver.x,
             rtol=1.0e-12,
             atol=0.0,
             maxiter=maxiter,
@@ -686,12 +631,13 @@ class Model:
                 'Initialization linear solve produced a non-finite pressure'
             )
 
-        self.x = solution
+        solver.x = solution
         # Update the nodal pressures
-        for node in self.variable_nodes:
-            node.pressure = self.x[node.index]
+        for node in self.nodes.values():
+            if node.variable:
+                node.pressure = solver.x[node.index]
         # Update the flows
-        self._synchronize_pressure_drops()
+        solver._synchronize_pressure_drops()
         for link in self.links:
             pdrop = link.pdrop
             flow, derivative = link.element.linearize(
@@ -735,49 +681,32 @@ class Model:
                     )
                 )
             link.pdrop = sp0 + sp1 + spx + wind_pressure
-        self._environmental_pressure_is_set = True
-        self._pressure_drop_node_pressures = None
-
-    def _synchronize_pressure_drops(self):
-        previous = self._pressure_drop_node_pressures
-        if previous is None:
-            for link in self.links:
-                link.pdrop += link.node0.pressure - link.node1.pressure
-        else:
-            for link in self.links:
-                link.pdrop += (
-                    link.node0.pressure
-                    - previous[link.node0]
-                    - link.node1.pressure
-                    + previous[link.node1]
-                )
-        self._pressure_drop_node_pressures = {
-            node: node.pressure for node in self.nodes.values()
-        }
-
-    def _linear_preconditioner(self, phase):
-        diagonal = self.A.diagonal()
-        if diagonal.size == 0:
-            return None
-        if not bool(numpy.all(numpy.isfinite(diagonal))) or bool(
-            numpy.any(diagonal <= 0.0)
-        ):
-            raise NumericalSolverError(
-                f'{phase.capitalize()} matrix has a non-positive or non-finite '
-                'diagonal coefficient'
-            )
-        # Preserve the established numerical path for ordinary networks.
-        # Diagonal scaling is needed for stress cases such as 133, whose
-        # coefficient range spans more than thirteen orders of magnitude.
-        if diagonal.max() <= 1.0e6 * diagonal.min():
-            return None
-        return scipy.sparse.diags(1.0 / diagonal)
 
     def air_movement(self, maxiter:int=100, max_subiter:int=100,
                      tolerance:float=1.0e-8, status_function=devnull,
                      relative_tolerance:float|None=None, relaxation:float=1.0,
                      minimum_iterations:int=1):
-        """Compute steady airflows in the model.
+        """Solve through a temporary :class:`Solver`.
+
+        This compatibility entry point remains until the solver algorithms are
+        moved in the next partitioning slice. New code should use
+        :meth:`Solver.steady_solve`.
+        """
+        return Solver(self).steady_solve(
+            maxiter=maxiter,
+            max_subiter=max_subiter,
+            tolerance=tolerance,
+            status_function=status_function,
+            relative_tolerance=relative_tolerance,
+            relaxation=relaxation,
+            minimum_iterations=minimum_iterations,
+        )
+
+    def _air_movement(self, solver, maxiter:int=100, max_subiter:int=100,
+                      tolerance:float=1.0e-8, status_function=devnull,
+                      relative_tolerance:float|None=None, relaxation:float=1.0,
+                      minimum_iterations:int=1):
+        """Run the nonlinear algorithm using solver-owned state.
         
         Parameters
         ----------
@@ -827,58 +756,14 @@ class Model:
         if minimum_iterations < 1:
             raise ValueError('Minimum iterations must be at least 1')
 
-        if not self._environmental_pressure_is_set:
-            self.compute_pressure_drops()
-        self._synchronize_pressure_drops()
+        if not solver._environmental_pressure_is_set:
+            solver._compute_environmental_pressure_drops()
+        solver._synchronize_pressure_drops()
         status_function('iter | Max Resid|\n==== ===============')
         previous_relative_residual = 0.0
         for iter in range(1,maxiter+1):
-            self.A.data.fill(0.0)
-            self.x.fill(0.0)
-            sum_abs_flow = numpy.zeros(self.size, dtype=numpy.double)
-            for link in self.links:
-                pdrop = link.pdrop
-                if link.node0.variable:
-                    nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(
-                        link, pdrop, control=link.control
-                    )
-                    if not all(
-                        math.isfinite(value)
-                        for value in (link.flow0, link.flow1, df0, df1)
-                    ):
-                        raise NumericalSolverError(
-                            f'Element on link "{link.name}" produced a non-finite '
-                            f'flow or derivative at nonlinear iteration {iter}'
-                        )
-                    link.flow_count = nf
-                    flow = link.flow0 + link.flow1
-                    derivative = df0 + df1
-                    # AIRNET assembles the net flow and net derivative while
-                    # retaining both components on the link for reporting.
-                    self.A[link.node0.index, link.node0.index] += derivative
-                    self.x[link.node0.index] += flow
-                    sum_abs_flow[link.node0.index] += abs(flow)
-                    if link.node1.variable:
-                        self.A[link.node1.index, link.node1.index] += derivative
-                        self.x[link.node1.index] -= flow
-                        sum_abs_flow[link.node1.index] += abs(flow)
-                        self.A[link.node0.index, link.node1.index] -= derivative
-                        self.A[link.node1.index, link.node0.index] -= derivative
-                else:
-                    nf, link.flow0, link.flow1 = link.element.flow(
-                        link, pdrop, control=link.control
-                    )
-                    if not all(
-                        math.isfinite(value)
-                        for value in (link.flow0, link.flow1)
-                    ):
-                        raise NumericalSolverError(
-                            f'Element on link "{link.name}" produced a non-finite '
-                            f'flow at nonlinear iteration {iter}'
-                        )
-                    link.flow_count = nf
-
-            residual = numpy.asarray(self.x).reshape(-1)
+            sum_abs_flow = solver._assemble_nonlinear(iter)
+            residual = numpy.asarray(solver.x).reshape(-1)
             if not bool(numpy.all(numpy.isfinite(residual))):
                 raise NumericalSolverError(
                     f'Non-finite residual at nonlinear iteration {iter}'
@@ -887,7 +772,7 @@ class Model:
             maxf = float(absolute_residual.max(initial=0.0))
             converged = absolute_residual < tolerance
             if relative_tolerance is not None:
-                relative_by_node = numpy.full(self.size, numpy.inf)
+                relative_by_node = numpy.full(solver.size, numpy.inf)
                 numpy.divide(
                     absolute_residual,
                     sum_abs_flow,
@@ -907,11 +792,11 @@ class Model:
                 return iter
 
             status_function('%4d %15.9e' % (iter, maxf))
-            preconditioner = self._linear_preconditioner(
+            preconditioner = solver._linear_preconditioner(
                 f'nonlinear iteration {iter}'
             )
-            correction, info = scipy.sparse.linalg.cg(
-                self.A,
+            solver.correction, info = scipy.sparse.linalg.cg(
+                solver.A,
                 residual,
                 rtol=1.0e-12,
                 atol=0.0,
@@ -926,7 +811,7 @@ class Model:
                     phase='nonlinear correction',
                     nonlinear_iteration=iter,
                 )
-            if not bool(numpy.all(numpy.isfinite(correction))):
+            if not bool(numpy.all(numpy.isfinite(solver.correction))):
                 raise NumericalSolverError(
                     f'Linear correction solve produced a non-finite value at '
                     f'nonlinear iteration {iter}'
@@ -938,19 +823,26 @@ class Model:
             previous_relative_residual = relative_residual
 
             # Update the nodal pressures; flows are set above.
-            for node in self.variable_nodes:
-                node.pressure -= correction_factor * correction[node.index]
+            for node in self.nodes.values():
+                if node.variable:
+                    node.pressure -= (
+                        correction_factor * solver.correction[node.index]
+                    )
             # Update pressure drops incrementally, as AIRNET does, to avoid
             # cancellation when two large node pressures differ only slightly.
             for link in self.links:
                 correction0 = (
-                    correction[link.node0.index] if link.node0.variable else 0.0
+                    solver.correction[link.node0.index]
+                    if link.node0.variable
+                    else 0.0
                 )
                 correction1 = (
-                    correction[link.node1.index] if link.node1.variable else 0.0
+                    solver.correction[link.node1.index]
+                    if link.node1.variable
+                    else 0.0
                 )
                 link.pdrop += correction_factor * (correction1 - correction0)
-            self._pressure_drop_node_pressures = {
+            solver._pressure_drop_node_pressures = {
                 node: node.pressure for node in self.nodes.values()
             }
 
@@ -977,6 +869,53 @@ class Solver:
         model._require_weather()
         self.model = model
         self._weather_revision = model._weather_revision
+        self._environmental_pressure_is_set = False
+        self._pressure_drop_node_pressures = None
+
+        # Equation preparation intentionally mutates model state. Nodes retain
+        # their row indices, and fixed-to-variable links retain their normalized
+        # orientation. Link input-oriented properties reverse result signs for
+        # presentation.
+        for link in model.links:
+            if link.flipped or link.node0.variable or not link.node1.variable:
+                continue
+            link.node0, link.node1 = link.node1, link.node0
+            link.ht0, link.ht1 = link.ht1, link.ht0
+            link.multiplier = -link.multiplier
+            link.wpmod = -link.wpmod
+            link.flipped = True
+        variable_count = 0
+        for node in model.nodes.values():
+            if node.variable:
+                node.index = variable_count
+                variable_count += 1
+            else:
+                node.index = None
+        self.size = variable_count
+
+        row = []
+        col = []
+        data = []
+        for link in model.links:
+            if link.node0.variable:
+                row.append(link.node0.index)
+                col.append(link.node0.index)
+                data.append(1.0)
+                if link.node1.variable:
+                    row.extend((link.node1.index, link.node0.index, link.node1.index))
+                    col.extend((link.node1.index, link.node1.index, link.node0.index))
+                    data.extend((1.0, 1.0, 1.0))
+
+        matrix = scipy.sparse.coo_matrix(
+            (
+                numpy.array(data, dtype=numpy.double),
+                (numpy.array(row), numpy.array(col)),
+            ),
+            shape=(self.size, self.size),
+        )
+        self.A = scipy.sparse.csr_matrix(matrix)
+        self.x = numpy.zeros([self.size, 1], dtype=numpy.double)
+        self.correction = numpy.zeros(self.size, dtype=numpy.double)
 
     def _require_current_weather(self):
         self.model._require_weather()
@@ -985,10 +924,122 @@ class Solver:
                 'Model weather changed after Solver construction; create a new Solver'
             )
 
+    def _compute_environmental_pressure_drops(self):
+        self.model.compute_pressure_drops()
+        self._environmental_pressure_is_set = True
+        self._pressure_drop_node_pressures = None
+
+    def _synchronize_pressure_drops(self):
+        previous = self._pressure_drop_node_pressures
+        if previous is None:
+            for link in self.model.links:
+                link.pdrop += link.node0.pressure - link.node1.pressure
+        else:
+            for link in self.model.links:
+                link.pdrop += (
+                    link.node0.pressure
+                    - previous[link.node0]
+                    - link.node1.pressure
+                    + previous[link.node1]
+                )
+        self._pressure_drop_node_pressures = {
+            node: node.pressure for node in self.model.nodes.values()
+        }
+
+    def _linear_preconditioner(self, phase):
+        diagonal = self.A.diagonal()
+        if diagonal.size == 0:
+            return None
+        if not bool(numpy.all(numpy.isfinite(diagonal))) or bool(
+            numpy.any(diagonal <= 0.0)
+        ):
+            raise NumericalSolverError(
+                f'{phase.capitalize()} matrix has a non-positive or non-finite '
+                'diagonal coefficient'
+            )
+        # Preserve the established numerical path for ordinary networks.
+        # Diagonal scaling is needed for stress cases such as 133, whose
+        # coefficient range spans more than thirteen orders of magnitude.
+        if diagonal.max() <= 1.0e6 * diagonal.min():
+            return None
+        return scipy.sparse.diags(1.0 / diagonal)
+
+    def _assemble_initialization(self):
+        self.A.data.fill(0.0)
+        self.x.fill(0.0)
+        for link in self.model.links:
+            if not link.node0.variable:
+                continue
+            pdrop = link.node0.pressure - link.node1.pressure + link.pdrop
+            flow, derivative = link.element.linearize(
+                link, pdrop=pdrop, control=link.control
+            )
+            right_hand_side = -flow
+            if not math.isfinite(derivative) or not math.isfinite(
+                right_hand_side
+            ):
+                raise NumericalSolverError(
+                    f'Element on link "{link.name}" produced a non-finite '
+                    'initialization derivative or residual flow'
+                )
+            self.x[link.node0.index] += right_hand_side
+            self.A[link.node0.index, link.node0.index] += derivative
+            if link.node1.variable:
+                self.x[link.node1.index] -= right_hand_side
+                self.A[link.node1.index, link.node1.index] += derivative
+                self.A[link.node0.index, link.node1.index] -= derivative
+                self.A[link.node1.index, link.node0.index] -= derivative
+
+    def _assemble_nonlinear(self, iteration):
+        self.A.data.fill(0.0)
+        self.x.fill(0.0)
+        sum_abs_flow = numpy.zeros(self.size, dtype=numpy.double)
+        for link in self.model.links:
+            pdrop = link.pdrop
+            if link.node0.variable:
+                nf, link.flow0, link.flow1, df0, df1 = link.element.calculate(
+                    link, pdrop, control=link.control
+                )
+                if not all(
+                    math.isfinite(value)
+                    for value in (link.flow0, link.flow1, df0, df1)
+                ):
+                    raise NumericalSolverError(
+                        f'Element on link "{link.name}" produced a non-finite '
+                        f'flow or derivative at nonlinear iteration {iteration}'
+                    )
+                link.flow_count = nf
+                flow = link.flow0 + link.flow1
+                derivative = df0 + df1
+                # AIRNET assembles the net flow and net derivative while
+                # retaining both components on the link for reporting.
+                self.A[link.node0.index, link.node0.index] += derivative
+                self.x[link.node0.index] += flow
+                sum_abs_flow[link.node0.index] += abs(flow)
+                if link.node1.variable:
+                    self.A[link.node1.index, link.node1.index] += derivative
+                    self.x[link.node1.index] -= flow
+                    sum_abs_flow[link.node1.index] += abs(flow)
+                    self.A[link.node0.index, link.node1.index] -= derivative
+                    self.A[link.node1.index, link.node0.index] -= derivative
+            else:
+                nf, link.flow0, link.flow1 = link.element.flow(
+                    link, pdrop, control=link.control
+                )
+                if not all(
+                    math.isfinite(value) for value in (link.flow0, link.flow1)
+                ):
+                    raise NumericalSolverError(
+                        f'Element on link "{link.name}" produced a non-finite '
+                        f'flow at nonlinear iteration {iteration}'
+                    )
+                link.flow_count = nf
+        return sum_abs_flow
+
     def initialize(self, maxiter: int = 100):
         """Initialize model pressures using element linearizations."""
         self._require_current_weather()
-        return self.model.initialize(maxiter=maxiter)
+        return self.model._initialize(self, maxiter=maxiter)
 
     def steady_solve(
         self,
@@ -1002,7 +1053,8 @@ class Solver:
     ):
         """Solve the model's steady airflow equations."""
         self._require_current_weather()
-        return self.model.air_movement(
+        return self.model._air_movement(
+            self,
             maxiter=maxiter,
             max_subiter=max_subiter,
             tolerance=tolerance,
@@ -1027,8 +1079,8 @@ def write_results_csv(nodes, links, csv_file_name):
         )
         output.write('link header, name, time id, pressure drop, flow0, flow1\n')
         output.writelines(
-            f'link, {link.name}, 0, {link.pdrop:21.15e}, '
-            f'{link.flow0:21.15e}, {link.flow1:21.15e}\n'
+            f'link, {link.name}, 0, {link.input_pressure_drop:21.15e}, '
+            f'{link.input_flow0:21.15e}, {link.input_flow1:21.15e}\n'
             for link in links
         )
 

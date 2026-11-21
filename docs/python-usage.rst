@@ -70,9 +70,20 @@ solver for each weather scenario.
 
 Node pressures are in pascals and link flows in kg/s. ``flow0`` and ``flow1``
 are both meaningful for a two-way DOR link; one-way elements return zero in
-the second component. Internally, links connected from a fixed node to a
-variable node may be reordered for sparse assembly. Consult ``link.flipped``
-or use the original input records when an input-oriented report is required.
+the second component. Constructing a solver assigns equation indices to
+variable nodes and may reorder a fixed-to-variable link on the model for
+sparse assembly. ``link.flipped`` records that change. Stored ``pdrop``,
+``flow0``, and ``flow1`` use the solver orientation; their
+``input_pressure_drop``, ``input_flow0``, and ``input_flow1`` counterparts use
+the original AIRNET input order. CSV output always uses the input order.
+
+The sparse matrix, residual vector, and pressure synchronization cache are
+solver state. They are not allocated while reading or constructing a model.
+``Solver`` determines variable-node ordering by assigning each node's
+``index``; that index remains on the model so the relationship between model
+state and matrix rows is explicit without a duplicate node-reference mapping
+inside the solver. Constructing another solver rebuilds independent numerical
+workspace and leaves an already normalized link unchanged.
 
 Failure handling
 ----------------

@@ -47,6 +47,12 @@ reader retains ``WIND_PROFILE`` as a name because AIRNET stores coefficient
 definitions in a separate file. Assigning :class:`airnet.weather.Weather` to
 the model resolves and validates every referenced profile.
 
+Model construction preserves this input order. Solver construction may
+reverse a fixed-to-variable link to simplify equation assembly and records the
+change in ``link.flipped``. The link's ``input_pressure_drop``,
+``input_flow0``, and ``input_flow1`` properties, and all CSV output, restore
+the original input direction.
+
 Elements
 --------
 

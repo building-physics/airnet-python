@@ -80,6 +80,10 @@ Environmental and solver behavior
    * - Link control
      - Supported programmatically
      - FN1--FN4 and CP1--CP2; allowed on CFR, FAN, and CPF.
+   * - Solver workspace isolation
+     - Supported
+     - Sparse matrices and vectors are solver-owned; node indices remain on
+       the model, and exported link results preserve input orientation.
    * - Explicit non-convergence
      - Supported
      - Initialization, correction, non-finite, and iteration-limit tests.
