@@ -128,7 +128,7 @@ def test_linear_initialization_uses_flow_direction_density():
     assert model.nodes['node-3'].pressure == pytest.approx(-200.0 / 3.0)
 
 
-def test_air_movement_reports_nonconvergence():
+def test_steady_solve_reports_nonconvergence():
     model = airnet.Model(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
@@ -162,7 +162,7 @@ def test_initialization_reports_linear_solver_failure(monkeypatch):
     assert error.value.max_iterations == 5
 
 
-def test_air_movement_reports_linear_correction_failure(monkeypatch):
+def test_steady_solve_reports_linear_correction_failure(monkeypatch):
     model = airnet.Model(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
@@ -183,7 +183,7 @@ def test_air_movement_reports_linear_correction_failure(monkeypatch):
     assert error.value.nonlinear_iteration == 1
 
 
-def test_air_movement_rejects_non_finite_element_results(monkeypatch):
+def test_steady_solve_rejects_non_finite_element_results(monkeypatch):
     model = airnet.Model(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
@@ -295,7 +295,7 @@ def two_way_network(variable_node=True):
     ]
 
 
-def test_air_movement_assembles_two_way_flow_and_jacobian_components():
+def test_steady_solve_assembles_two_way_flow_and_jacobian_components():
     model = airnet.Model(
         two_way_network(),
         element_lookup={'two': TwoWayElement},
@@ -313,7 +313,7 @@ def test_air_movement_assembles_two_way_flow_and_jacobian_components():
     assert model.links[0].flow1 == pytest.approx(-1.5)
 
 
-def test_air_movement_retains_fixed_to_fixed_two_way_flows():
+def test_steady_solve_retains_fixed_to_fixed_two_way_flows():
     model = airnet.Model(
         two_way_network(variable_node=False),
         element_lookup={'two': TwoWayElement},
@@ -808,7 +808,15 @@ def test_solver_owns_workspace_and_assigns_indices_on_model_nodes():
     assert model.nodes['variable'].index is None
     assert link.node0 is model.nodes['fixed']
     assert not link.flipped
-    for name in ('A', 'x', 'correction', 'size', 'variable_nodes'):
+    for name in (
+        'A',
+        'x',
+        'correction',
+        'size',
+        'variable_nodes',
+        'initialize',
+        'air_movement',
+    ):
         assert not hasattr(model, name)
 
     first = airnet.Solver(model)

@@ -49,6 +49,10 @@ The lower-level API separates each stage:
        minimum_iterations=2,
    )
 
+Initialization and steady solution are operations on ``Solver``. ``Model``
+does not provide duplicate solving entry points; it holds the physical network
+and the pressure and flow state updated by the solver.
+
 AIRNET keeps its network, wind coefficients, and run weather separate.
 Consequently, :meth:`airnet.model.Model.read_airnet` always returns a model
 whose ``weather`` is ``None``. When wind profiles are needed, read the separate

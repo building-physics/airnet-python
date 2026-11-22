@@ -580,78 +580,6 @@ class Model:
         )
         self._apply_property_states(property_states)
 
-    def initialize(self, maxiter:int=100):
-        """Initialize through a temporary :class:`Solver`.
-
-        This compatibility entry point remains until the solver algorithms are
-        moved in the next partitioning slice. New code should construct one
-        solver and call :meth:`Solver.initialize` on it.
-        """
-        return Solver(self).initialize(maxiter=maxiter)
-
-    def _initialize(self, solver, maxiter:int=100):
-        """Run the linear initialization algorithm using solver-owned state.
-        
-        Compute flows and pressure drops using linear flow representation for all elements.
-        
-        Parameters
-        ----------
-        maxiter: optional
-            The maximum number of iterations allowed in the solution.
-            
-        Raises
-        ------
-        InitializationError
-            If the linear initialization solve fails or does not converge.
-        NumericalSolverError
-            If initialization produces a non-finite coefficient, solution,
-            or flow.
-        """
-        self._require_weather()
-        if maxiter < 1:
-            raise ValueError('Maximum initialization iterations must be at least 1')
-
-        # AIRNET includes stack and wind terms in the pressure drop passed to
-        # each element during linear initialization.
-        solver._compute_environmental_pressure_drops()
-        solver._assemble_initialization()
-        preconditioner = solver._linear_preconditioner('initialization')
-        solution, info = scipy.sparse.linalg.cg(
-            solver.A,
-            solver.x,
-            rtol=1.0e-12,
-            atol=0.0,
-            maxiter=maxiter,
-            M=preconditioner,
-        )
-        if info != 0:
-            raise InitializationError(info=info, max_iterations=maxiter)
-        if not bool(numpy.all(numpy.isfinite(solution))):
-            raise NumericalSolverError(
-                'Initialization linear solve produced a non-finite pressure'
-            )
-
-        solver.x = solution
-        # Update the nodal pressures
-        for node in self.nodes.values():
-            if node.variable:
-                node.pressure = solver.x[node.index]
-        # Update the flows
-        solver._synchronize_pressure_drops()
-        for link in self.links:
-            pdrop = link.pdrop
-            flow, derivative = link.element.linearize(
-                link, pdrop=pdrop, control=link.control
-            )
-            if not math.isfinite(derivative) or not math.isfinite(flow):
-                raise NumericalSolverError(
-                    f'Element on link "{link.name}" produced a non-finite '
-                    'initialization flow'
-                )
-            link.flow_count = 1
-            link.flow0 = flow
-            link.flow1 = 0.0
-    
     def compute_pressure_drops(self):
         """Compute the pressure drop across all the links in the model."""
         weather = self._require_weather()
@@ -681,179 +609,6 @@ class Model:
                     )
                 )
             link.pdrop = sp0 + sp1 + spx + wind_pressure
-
-    def air_movement(self, maxiter:int=100, max_subiter:int=100,
-                     tolerance:float=1.0e-8, status_function=devnull,
-                     relative_tolerance:float|None=None, relaxation:float=1.0,
-                     minimum_iterations:int=1):
-        """Solve through a temporary :class:`Solver`.
-
-        This compatibility entry point remains until the solver algorithms are
-        moved in the next partitioning slice. New code should use
-        :meth:`Solver.steady_solve`.
-        """
-        return Solver(self).steady_solve(
-            maxiter=maxiter,
-            max_subiter=max_subiter,
-            tolerance=tolerance,
-            status_function=status_function,
-            relative_tolerance=relative_tolerance,
-            relaxation=relaxation,
-            minimum_iterations=minimum_iterations,
-        )
-
-    def _air_movement(self, solver, maxiter:int=100, max_subiter:int=100,
-                      tolerance:float=1.0e-8, status_function=devnull,
-                      relative_tolerance:float|None=None, relaxation:float=1.0,
-                      minimum_iterations:int=1):
-        """Run the nonlinear algorithm using solver-owned state.
-        
-        Parameters
-        ----------
-        maxiter: optional
-            The maximum number of Newton iterations allowed.
-        max_subiter: optional
-            The maximum number of conjugate gradient iterations allowed in the linear solve.
-        tolerance: optional
-            The absolute convergence tolerance.
-        relative_tolerance: optional
-            The per-node relative airflow convergence tolerance. When omitted,
-            convergence is based only on ``tolerance``.
-        relaxation: optional
-            The AIRNET under-relaxation coefficient. A correction is relaxed
-            when the global relative residual is not falling rapidly.
-        minimum_iterations: optional
-            The minimum number of nonlinear residual evaluations.
-        status_function: optional
-            Function that handles message output, the default is to discard all messages.
-        
-        Returns
-        -------
-        int:
-            The number of Newton iterations used in the solve.
-
-        Raises
-        ------
-        LinearSolverError
-            If a linear correction fails or does not converge.
-        NonlinearSolverError
-            If the airflow iteration does not converge within ``maxiter``
-            iterations.
-        NumericalSolverError
-            If an element or linear solve produces a non-finite value.
-        """
-        self._require_weather()
-        if maxiter < 1:
-            raise ValueError('Maximum nonlinear iterations must be at least 1')
-        if max_subiter < 1:
-            raise ValueError('Maximum linear iterations must be at least 1')
-        if tolerance < 0.0:
-            raise ValueError('Absolute convergence tolerance cannot be negative')
-        if relative_tolerance is not None and relative_tolerance < 0.0:
-            raise ValueError('Relative convergence tolerance cannot be negative')
-        if not 0.0 < relaxation <= 1.0:
-            raise ValueError('Relaxation coefficient must be greater than 0 and at most 1')
-        if minimum_iterations < 1:
-            raise ValueError('Minimum iterations must be at least 1')
-
-        if not solver._environmental_pressure_is_set:
-            solver._compute_environmental_pressure_drops()
-        solver._synchronize_pressure_drops()
-        status_function('iter | Max Resid|\n==== ===============')
-        previous_relative_residual = 0.0
-        for iter in range(1,maxiter+1):
-            sum_abs_flow = solver._assemble_nonlinear(iter)
-            residual = numpy.asarray(solver.x).reshape(-1)
-            if not bool(numpy.all(numpy.isfinite(residual))):
-                raise NumericalSolverError(
-                    f'Non-finite residual at nonlinear iteration {iter}'
-                )
-            absolute_residual = numpy.abs(residual)
-            maxf = float(absolute_residual.max(initial=0.0))
-            converged = absolute_residual < tolerance
-            if relative_tolerance is not None:
-                relative_by_node = numpy.full(solver.size, numpy.inf)
-                numpy.divide(
-                    absolute_residual,
-                    sum_abs_flow,
-                    out=relative_by_node,
-                    where=sum_abs_flow > 0.0,
-                )
-                converged |= relative_by_node <= relative_tolerance
-
-            total_abs_flow = float(sum_abs_flow.sum())
-            if total_abs_flow > 0.0:
-                relative_residual = float(absolute_residual.sum()) / total_abs_flow
-            else:
-                relative_residual = 0.0
-
-            if bool(numpy.all(converged)) and iter >= minimum_iterations:
-                status_function('%4d %15.9e < %e' % (iter, maxf, tolerance))
-                return iter
-
-            status_function('%4d %15.9e' % (iter, maxf))
-            preconditioner = solver._linear_preconditioner(
-                f'nonlinear iteration {iter}'
-            )
-            solver.correction, info = scipy.sparse.linalg.cg(
-                solver.A,
-                residual,
-                rtol=1.0e-12,
-                atol=0.0,
-                maxiter=max_subiter,
-                M=preconditioner,
-            )
-            if info != 0:
-                raise LinearSolverError(
-                    f'Linear correction solve failed at nonlinear iteration {iter} '
-                    f'(solver info={info})',
-                    info=info,
-                    phase='nonlinear correction',
-                    nonlinear_iteration=iter,
-                )
-            if not bool(numpy.all(numpy.isfinite(solver.correction))):
-                raise NumericalSolverError(
-                    f'Linear correction solve produced a non-finite value at '
-                    f'nonlinear iteration {iter}'
-                )
-
-            correction_factor = 1.0
-            if relative_residual > 0.30 * previous_relative_residual:
-                correction_factor = relaxation
-            previous_relative_residual = relative_residual
-
-            # Update the nodal pressures; flows are set above.
-            for node in self.nodes.values():
-                if node.variable:
-                    node.pressure -= (
-                        correction_factor * solver.correction[node.index]
-                    )
-            # Update pressure drops incrementally, as AIRNET does, to avoid
-            # cancellation when two large node pressures differ only slightly.
-            for link in self.links:
-                correction0 = (
-                    solver.correction[link.node0.index]
-                    if link.node0.variable
-                    else 0.0
-                )
-                correction1 = (
-                    solver.correction[link.node1.index]
-                    if link.node1.variable
-                    else 0.0
-                )
-                link.pdrop += correction_factor * (correction1 - correction0)
-            solver._pressure_drop_node_pressures = {
-                node: node.pressure for node in self.nodes.values()
-            }
-
-        raise NonlinearSolverError(
-            max_iterations=maxiter,
-            maximum_absolute_residual=maxf,
-            relative_residual=relative_residual,
-            absolute_tolerance=tolerance,
-            relative_tolerance=relative_tolerance,
-        )
-
 
 class Solver:
     """Numerical interface for initializing and solving a weather-bound model.
@@ -1037,9 +792,62 @@ class Solver:
         return sum_abs_flow
 
     def initialize(self, maxiter: int = 100):
-        """Initialize model pressures using element linearizations."""
+        """Initialize model pressures using element linearizations.
+
+        Parameters
+        ----------
+        maxiter: optional
+            The maximum number of conjugate-gradient iterations.
+
+        Raises
+        ------
+        InitializationError
+            If the linear initialization solve fails or does not converge.
+        NumericalSolverError
+            If initialization produces a non-finite coefficient, solution,
+            or flow.
+        """
         self._require_current_weather()
-        return self.model._initialize(self, maxiter=maxiter)
+        if maxiter < 1:
+            raise ValueError('Maximum initialization iterations must be at least 1')
+
+        # AIRNET includes stack and wind terms in the pressure drop passed to
+        # each element during linear initialization.
+        self._compute_environmental_pressure_drops()
+        self._assemble_initialization()
+        preconditioner = self._linear_preconditioner('initialization')
+        solution, info = scipy.sparse.linalg.cg(
+            self.A,
+            self.x,
+            rtol=1.0e-12,
+            atol=0.0,
+            maxiter=maxiter,
+            M=preconditioner,
+        )
+        if info != 0:
+            raise InitializationError(info=info, max_iterations=maxiter)
+        if not bool(numpy.all(numpy.isfinite(solution))):
+            raise NumericalSolverError(
+                'Initialization linear solve produced a non-finite pressure'
+            )
+
+        self.x = solution
+        for node in self.model.nodes.values():
+            if node.variable:
+                node.pressure = self.x[node.index]
+        self._synchronize_pressure_drops()
+        for link in self.model.links:
+            flow, derivative = link.element.linearize(
+                link, pdrop=link.pdrop, control=link.control
+            )
+            if not math.isfinite(derivative) or not math.isfinite(flow):
+                raise NumericalSolverError(
+                    f'Element on link "{link.name}" produced a non-finite '
+                    'initialization flow'
+                )
+            link.flow_count = 1
+            link.flow0 = flow
+            link.flow1 = 0.0
 
     def steady_solve(
         self,
@@ -1051,17 +859,151 @@ class Solver:
         relaxation: float = 1.0,
         minimum_iterations: int = 1,
     ):
-        """Solve the model's steady airflow equations."""
+        """Solve the model's steady airflow equations.
+
+        Parameters
+        ----------
+        maxiter: optional
+            The maximum number of Newton iterations allowed.
+        max_subiter: optional
+            The maximum conjugate-gradient iterations per Newton correction.
+        tolerance: optional
+            The absolute per-node airflow convergence tolerance.
+        status_function: optional
+            Function receiving iteration status messages.
+        relative_tolerance: optional
+            The per-node relative airflow convergence tolerance. When omitted,
+            convergence is based only on ``tolerance``.
+        relaxation: optional
+            The AIRNET under-relaxation coefficient.
+        minimum_iterations: optional
+            The minimum number of nonlinear residual evaluations.
+
+        Returns
+        -------
+        int
+            The number of Newton iterations used in the solve.
+
+        Raises
+        ------
+        LinearSolverError
+            If a linear correction fails or does not converge.
+        NonlinearSolverError
+            If the airflow iteration does not converge within ``maxiter``.
+        NumericalSolverError
+            If an element or linear solve produces a non-finite value.
+        """
         self._require_current_weather()
-        return self.model._air_movement(
-            self,
-            maxiter=maxiter,
-            max_subiter=max_subiter,
-            tolerance=tolerance,
-            status_function=status_function,
+        if maxiter < 1:
+            raise ValueError('Maximum nonlinear iterations must be at least 1')
+        if max_subiter < 1:
+            raise ValueError('Maximum linear iterations must be at least 1')
+        if tolerance < 0.0:
+            raise ValueError('Absolute convergence tolerance cannot be negative')
+        if relative_tolerance is not None and relative_tolerance < 0.0:
+            raise ValueError('Relative convergence tolerance cannot be negative')
+        if not 0.0 < relaxation <= 1.0:
+            raise ValueError(
+                'Relaxation coefficient must be greater than 0 and at most 1'
+            )
+        if minimum_iterations < 1:
+            raise ValueError('Minimum iterations must be at least 1')
+
+        if not self._environmental_pressure_is_set:
+            self._compute_environmental_pressure_drops()
+        self._synchronize_pressure_drops()
+        status_function('iter | Max Resid|\n==== ===============')
+        previous_relative_residual = 0.0
+        for iteration in range(1, maxiter + 1):
+            sum_abs_flow = self._assemble_nonlinear(iteration)
+            residual = numpy.asarray(self.x).reshape(-1)
+            if not bool(numpy.all(numpy.isfinite(residual))):
+                raise NumericalSolverError(
+                    f'Non-finite residual at nonlinear iteration {iteration}'
+                )
+            absolute_residual = numpy.abs(residual)
+            maxf = float(absolute_residual.max(initial=0.0))
+            converged = absolute_residual < tolerance
+            if relative_tolerance is not None:
+                relative_by_node = numpy.full(self.size, numpy.inf)
+                numpy.divide(
+                    absolute_residual,
+                    sum_abs_flow,
+                    out=relative_by_node,
+                    where=sum_abs_flow > 0.0,
+                )
+                converged |= relative_by_node <= relative_tolerance
+
+            total_abs_flow = float(sum_abs_flow.sum())
+            if total_abs_flow > 0.0:
+                relative_residual = float(absolute_residual.sum()) / total_abs_flow
+            else:
+                relative_residual = 0.0
+
+            if bool(numpy.all(converged)) and iteration >= minimum_iterations:
+                status_function(
+                    '%4d %15.9e < %e' % (iteration, maxf, tolerance)
+                )
+                return iteration
+
+            status_function('%4d %15.9e' % (iteration, maxf))
+            preconditioner = self._linear_preconditioner(
+                f'nonlinear iteration {iteration}'
+            )
+            self.correction, info = scipy.sparse.linalg.cg(
+                self.A,
+                residual,
+                rtol=1.0e-12,
+                atol=0.0,
+                maxiter=max_subiter,
+                M=preconditioner,
+            )
+            if info != 0:
+                raise LinearSolverError(
+                    f'Linear correction solve failed at nonlinear iteration '
+                    f'{iteration} (solver info={info})',
+                    info=info,
+                    phase='nonlinear correction',
+                    nonlinear_iteration=iteration,
+                )
+            if not bool(numpy.all(numpy.isfinite(self.correction))):
+                raise NumericalSolverError(
+                    'Linear correction solve produced a non-finite value at '
+                    f'nonlinear iteration {iteration}'
+                )
+
+            correction_factor = 1.0
+            if relative_residual > 0.30 * previous_relative_residual:
+                correction_factor = relaxation
+            previous_relative_residual = relative_residual
+
+            for node in self.model.nodes.values():
+                if node.variable:
+                    node.pressure -= correction_factor * self.correction[node.index]
+            # Update pressure drops incrementally, as AIRNET does, to avoid
+            # cancellation when two large node pressures differ only slightly.
+            for link in self.model.links:
+                correction0 = (
+                    self.correction[link.node0.index]
+                    if link.node0.variable
+                    else 0.0
+                )
+                correction1 = (
+                    self.correction[link.node1.index]
+                    if link.node1.variable
+                    else 0.0
+                )
+                link.pdrop += correction_factor * (correction1 - correction0)
+            self._pressure_drop_node_pressures = {
+                node: node.pressure for node in self.model.nodes.values()
+            }
+
+        raise NonlinearSolverError(
+            max_iterations=maxiter,
+            maximum_absolute_residual=maxf,
+            relative_residual=relative_residual,
+            absolute_tolerance=tolerance,
             relative_tolerance=relative_tolerance,
-            relaxation=relaxation,
-            minimum_iterations=minimum_iterations,
         )
 
     def transient_step(self, *args, **kwargs):

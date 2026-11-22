@@ -30,6 +30,10 @@ is written only after the nonlinear convergence criteria are satisfied. Link
 results in that output retain the node ordering and sign convention of the
 AIRNET input even when the solver normalized a link internally.
 
+The initialization and nonlinear algorithms have a single implementation on
+``Solver``. ``Model`` owns the resulting node pressures and link flows but has
+no solving entry points or numerical workspace.
+
 Relationship to AIRNET
 ----------------------
 
