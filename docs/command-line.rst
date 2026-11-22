@@ -27,7 +27,14 @@ reported as command-line errors with a nonzero exit status.
 ------------
 
 ``simulate`` performs one complete initialization and nonlinear solve. By
-default it writes ``airnetsim.csv`` in the current directory:
+default it writes ``airnetsim.csv`` in the current directory.
+
+The command uses the same partitioned API as Python callers: the AIRNET file
+creates a ``Model``, the command-line environmental options create its
+``Weather``, and a ``Solver`` owns initialization and steady solution. Solved
+pressures and flows remain on the model and are written only after convergence.
+
+For example:
 
 .. code-block:: bat
 

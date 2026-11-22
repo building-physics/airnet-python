@@ -1048,10 +1048,12 @@ def run_simulate(
 ):
     """Read, solve, and optionally write one AIRNET network simulation.
 
-    This convenience API performs a single, non-interactive run. It returns
-    the solved :class:`Model`; callers that need structured results can read
-    the model's nodes and links directly. The output file is written only
-    after successful initialization and nonlinear convergence.
+    This convenience API performs a single, non-interactive run through the
+    public object boundaries: :meth:`Model.read_airnet`, one bound
+    :class:`~airnet.weather.Weather`, and one :class:`Solver`. It returns the
+    solved :class:`Model`; callers that need structured results can read the
+    model's nodes and links directly. The output file is written only after
+    successful initialization and nonlinear convergence.
 
     Parameters are expressed in AIRNET's SI units: degrees Celsius, pascals,
     metres per second, degrees clockwise from north, and kilograms per second.
@@ -1059,11 +1061,12 @@ def run_simulate(
     """
     if verbose:
         print(f'Opening input file "{input_file}"...')
-    with open(input_file, encoding='utf-8') as input_stream:
-        reader = Reader(input_stream)
-        if verbose:
-            print(f'Reading input file "{input_file}"...')
-        items = list(reader)
+        print(f'Reading input file "{input_file}"...')
+    model = Model.read_airnet(
+        input_file,
+        global_temperature=global_temperature,
+        global_density=global_density,
+    )
     if verbose:
         print(f'Closing input file "{input_file}".')
 
@@ -1081,12 +1084,7 @@ def run_simulate(
         wind_direction=wind_direction,
         wind_profiles=wind_profiles or {},
     )
-    model = Model(
-        items,
-        global_temperature=global_temperature,
-        global_density=global_density,
-        weather=weather,
-    )
+    model.weather = weather
     if verbose:
         print(model.summary())
 

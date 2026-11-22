@@ -224,14 +224,32 @@ def test_run_simulate_does_not_write_results_after_initialization_failure(
     assert not (tmp_path / 'airnetsim.csv').exists()
 
 
-def test_run_simulate_returns_model_and_writes_selected_output(tmp_path):
+def test_run_simulate_uses_partitioned_api_and_writes_selected_output(
+    monkeypatch, tmp_path
+):
     input_file = tmp_path / 'network.txt'
     output_file = tmp_path / 'selected-results.csv'
     input_file.write_text(AFDATA_PL2, encoding='utf-8')
+    original_read_airnet = airnet.Model.read_airnet
+    read_models = []
+
+    def record_read(input_source, **options):
+        read_model = original_read_airnet(input_source, **options)
+        assert read_model.weather is None
+        read_models.append(read_model)
+        return read_model
+
+    monkeypatch.setattr(
+        airnet.Model,
+        'read_airnet',
+        staticmethod(record_read),
+    )
 
     model = airnet.run_simulate(input_file, output_file=output_file)
 
     assert isinstance(model, airnet.Model)
+    assert read_models == [model]
+    assert isinstance(model.weather, airnet.Weather)
     output = output_file.read_text(encoding='utf-8')
     assert output.startswith('node header,')
     link_1 = next(line for line in output.splitlines() if line.startswith('link, link-1,'))

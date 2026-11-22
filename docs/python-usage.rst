@@ -26,6 +26,10 @@ the solved :class:`airnet.model.Model`:
 
 Pass ``output_file=None`` when no CSV is wanted. No file is written when
 parsing, construction, initialization, or nonlinear solution fails.
+Internally, this convenience function follows the same stages as the explicit
+API: it calls ``Model.read_airnet``, binds one ``Weather`` object, constructs
+one ``Solver``, initializes, and performs the steady solve. It returns that
+same solved model rather than maintaining a separate result object.
 
 Explicit construction and solve
 -------------------------------
