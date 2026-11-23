@@ -23,6 +23,16 @@ environments:
 Use ``312`` rather than ``3.12`` in Hatch matrix selection. Select another
 installed interpreter with ``+py=311``, for example.
 
+For interactive development, enter the default environment and run pytest
+directly:
+
+.. code-block:: bat
+
+   hatch shell
+   pytest
+
+The default environment includes both pytest and pytest-cov.
+
 Building the documentation
 --------------------------
 

@@ -41,6 +41,12 @@ Source = "https://github.com/building-physics/airnet-python"
 [tool.hatch.version]
 path = "src/airnet/__about__.py"
 
+[tool.hatch.envs.default]
+dependencies = [
+  "pytest",
+  "pytest-cov",
+]
+
 [tool.hatch.envs.test]
 dependencies = [
   "pytest",

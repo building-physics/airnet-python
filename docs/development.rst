@@ -17,6 +17,17 @@ From CMD, run focused tests first and then the full suite:
    hatch run +py=311 test:test
    hatch run lint:check
 
+The default Hatch environment also includes pytest and pytest-cov for an
+interactive development session:
+
+.. code-block:: bat
+
+   hatch shell
+   pytest
+
+The ``pytest`` command in this shell is provided by the Hatch environment and
+the checkout is installed as an editable package.
+
 The test matrix in ``pyproject.toml`` also declares later supported Python
 versions for CI even when those interpreters are not installed locally.
 
