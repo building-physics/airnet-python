@@ -331,6 +331,38 @@ def test_steady_solve_assembles_two_way_flow_and_jacobian_components():
     assert model.links[0].flow1 == pytest.approx(-1.5)
 
 
+def test_solver_matrix_matches_finite_difference_of_assembled_residual():
+    model = airnet.Model(
+        two_way_network(),
+        element_lookup={'two': TwoWayElement},
+        weather=airnet.Weather(),
+    )
+    solver = airnet.Solver(model)
+    node = model.nodes['node-1']
+    node.pressure = 0.25
+    solver._compute_environmental_pressure_drops()
+    solver._synchronize_pressure_drops()
+
+    solver._assemble_nonlinear(iteration=1)
+    residual = solver.x[0, 0]
+    assembled_derivative = solver.A[0, 0]
+
+    step = 1.0e-6
+    node.pressure += step
+    solver._synchronize_pressure_drops()
+    solver._assemble_nonlinear(iteration=1)
+    upper_residual = solver.x[0, 0]
+    node.pressure -= 2.0 * step
+    solver._synchronize_pressure_drops()
+    solver._assemble_nonlinear(iteration=1)
+    lower_residual = solver.x[0, 0]
+    finite_difference = (upper_residual - lower_residual) / (2.0 * step)
+
+    assert residual == pytest.approx(1.5)
+    assert assembled_derivative == pytest.approx(2.0)
+    assert assembled_derivative == pytest.approx(finite_difference)
+
+
 def test_steady_solve_retains_fixed_to_fixed_two_way_flows():
     model = airnet.Model(
         two_way_network(variable_node=False),
@@ -766,6 +798,10 @@ def test_read_airnet_leaves_weather_unbound(tmp_path):
     model = airnet.Model.read_airnet(input_file)
 
     assert model.weather is None
+    assert all(node.index is None for node in model.nodes.values())
+    assert not any(link.flipped for link in model.links)
+    for name in ('A', 'x', 'correction', 'size'):
+        assert not hasattr(model, name)
     with pytest.raises(airnet.MissingWeather, match='assign model.weather'):
         airnet.Solver(model)
 
@@ -798,7 +834,42 @@ def test_weather_binding_is_atomic_when_wind_profile_is_missing():
     } == original_properties
 
 
-def test_solver_delegates_steady_solution_and_rejects_rebound_weather():
+def test_weather_rebinding_deterministically_refreshes_derived_properties():
+    records = valid_network_records()
+    record_named(records, 'fixed')['type'] = 'a'
+    original_weather = airnet.Weather(
+        ambient_temperature=10.0,
+        barometric_pressure=101325.0,
+    )
+    model = airnet.Model(records, weather=original_weather)
+
+    def property_state():
+        return {
+            name: (
+                node.temperature,
+                node.density,
+                node.sqrt_density,
+                node.viscosity,
+                node.dvisc,
+            )
+            for name, node in model.nodes.items()
+        }
+
+    original_state = property_state()
+    model.weather = airnet.Weather(
+        ambient_temperature=-5.0,
+        barometric_pressure=90000.0,
+    )
+
+    assert model.nodes['fixed'].temperature == pytest.approx(268.15)
+    assert property_state() != original_state
+
+    model.weather = original_weather
+
+    assert property_state() == original_state
+
+
+def test_solver_solves_and_rejects_rebound_weather():
     model = airnet.Model(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
