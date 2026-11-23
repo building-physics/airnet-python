@@ -522,7 +522,7 @@ class Model:
         str:
             A multiline string that describes the model.
         """
-        string = 'Title: %s\n\nElements:\n=========\n' % self.title
+        string = f'Title: {self.title}\n\nElements:\n=========\n'
         elements = {}
         for el in self.elements.values():
             tag = el.type()
@@ -531,11 +531,11 @@ class Model:
             else:
                 elements[tag] = 1
         for key, value in elements.items():
-            string += '%s: %d\n' % (key, value)
+            string += f'{key}: {value}\n'
 
         variable_count = sum(node.variable for node in self.nodes.values())
-        string += '\nNodes: %s\n\nLinks: %s\n' % (len(self.nodes), len(self.links))
-        string += '\nSystem size: %d x %x\n' % (variable_count, variable_count)
+        string += f'\nNodes: {len(self.nodes)}\n\nLinks: {len(self.links)}\n'
+        string += f'\nSystem size: {variable_count} x {variable_count}\n'
         return string
     
     def results_summary(self):
@@ -546,17 +546,20 @@ class Model:
         str:
             A multiline string that describes the results.
         """
-        string = 'Title: %s\n\nNodes:\n======\n' % self.title
-        for name, node in self.nodes.items():
+        string = f'Title: {self.title}\n\nNodes:\n======\n'
+        for node in self.nodes.values():
             nr = node.index
             if nr is None:
                 nr = 0
-            string += '%4d %s: %e %e %e\n' % (nr, node.name, node.pressure, node.temperature, node.density)
+            string += (
+                f'{nr:4d} {node.name}: {node.pressure:e} '
+                f'{node.temperature:e} {node.density:e}\n'
+            )
         string += '\n'
     
         variable_count = sum(node.variable for node in self.nodes.values())
-        string += '\nNodes: %s\n\nLinks: %s\n' % (len(self.nodes), len(self.links))
-        string += '\nSystem size: %d x %x\n' % (variable_count, variable_count)
+        string += f'\nNodes: {len(self.nodes)}\n\nLinks: {len(self.links)}\n'
+        string += f'\nSystem size: {variable_count} x {variable_count}\n'
         return string
 
     def set_properties(self, nodes:list, global_temperature:float|None=None, global_density:float|None=None):
@@ -942,11 +945,11 @@ class Solver:
 
             if bool(numpy.all(converged)) and iteration >= minimum_iterations:
                 status_function(
-                    '%4d %15.9e < %e' % (iteration, maxf, tolerance)
+                    f'{iteration:4d} {maxf:15.9e} < {tolerance:e}'
                 )
                 return iteration
 
-            status_function('%4d %15.9e' % (iteration, maxf))
+            status_function(f'{iteration:4d} {maxf:15.9e}')
             preconditioner = self._linear_preconditioner(
                 f'nonlinear iteration {iteration}'
             )

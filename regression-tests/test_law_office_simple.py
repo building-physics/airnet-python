@@ -1,8 +1,10 @@
 # SPDX-FileCopyrightText: 2023-present Oak Ridge National Laboratory, managed by UT-Battelle
 #
 # SPDX-License-Identifier: BSD-3-Clause
-import airnet
 import os
+
+import airnet
+
 
 def test_law_office_simple():
     current_dir = os.path.dirname(os.path.abspath(__file__))

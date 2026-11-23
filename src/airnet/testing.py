@@ -2,9 +2,10 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 import csv
-from contextlib import contextmanager
-import tempfile
 import os
+import tempfile
+from contextlib import contextmanager
+
 
 @contextmanager
 def temporary_directory():
@@ -21,10 +22,16 @@ def compare_nodes(line1, line2, pressure_tolerance, temperature_tolerance, densi
     messages = []
     # Check names
     if line1[1].strip() != line2[1].strip():
-        messages.append('Nodes at line %d have different names: %s, %s' % (line_number, line1[1], line2[1]))
+        messages.append(
+            f'Nodes at line {line_number:d} have different names: '
+            f'{line1[1]}, {line2[1]}'
+        )
     # Check the time id
     if int(line1[2]) != int(line2[2]):
-        messages.append('Nodes at line %d have difference time index: %s, %s' % (line_number, line1[2], line2[2]))
+        messages.append(
+            f'Nodes at line {line_number:d} have difference time index: '
+            f'{line1[2]}, {line2[2]}'
+        )
     # Check pressure, temperature, and density
     index = [3, 4, 5]
     vars = ['pressure', 'temperature', 'density']
@@ -32,7 +39,10 @@ def compare_nodes(line1, line2, pressure_tolerance, temperature_tolerance, densi
     for i,v,t in zip(index,vars,tols):
         delta = abs(float(line1[i]) - float(line2[i]))
         if delta > t:
-            messages.append('Nodes at line %d have %s difference %e > %e: %s, %s' % (line_number, v, delta, t, line1[i], line2[i]))
+            messages.append(
+                f'Nodes at line {line_number:d} have {v} difference '
+                f'{delta:e} > {t:e}: {line1[i]}, {line2[i]}'
+            )
 
     return messages
 
@@ -50,7 +60,10 @@ def compare_csvs(csv1, csv2, node_pressure_tolerance=1.0e-7, node_temperature_to
         for line1, line2 in zip(r1, r2):
             # The first column is supposed to be the type of the row
             if line1[0] != line2[0]:
-                messages.append('Line %d type mismatch (%s vs %s)' % (line_count, line1[0], line2[0]))
+                messages.append(
+                    f'Line {line_count:d} type mismatch '
+                    f'({line1[0]} vs {line2[0]})'
+                )
             else:
                 if line1[0].endswith('header'):
                     pass
@@ -60,6 +73,6 @@ def compare_csvs(csv1, csv2, node_pressure_tolerance=1.0e-7, node_temperature_to
                 elif line1[0] == 'link':
                     pass
                 else:
-                    messages.append('Unknown row type: %s' % line1[0])
+                    messages.append(f'Unknown row type: {line1[0]}')
             line_count += 1
     return messages

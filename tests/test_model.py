@@ -37,10 +37,7 @@ class AltModel(airnet.Model):
 
 def test_model_creation():
     reader = airnet.Reader(iter(AFDATA_PL2.splitlines()))
-    items = []
-
-    for item in reader:
-        items.append(item)
+    items = list(reader)
 
     model = airnet.Model(items, weather=airnet.Weather())
     assert len(model.nodes) == 4
