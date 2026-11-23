@@ -31,6 +31,26 @@ the checkout is installed as an editable package.
 The test matrix in ``pyproject.toml`` also declares later supported Python
 versions for CI even when those interpreters are not installed locally.
 
+Continuous integration
+----------------------
+
+GitHub Actions runs the complete unit and AIRNET regression suites on CPython
+3.11 through 3.15 on Ubuntu, with an additional CPython 3.12 Windows run. A
+separate Python 3.11 job exercises the minimum supported dependency versions,
+and a canonical Python 3.12 job reports branch coverage. PyPy testing is
+deferred pending a reproducible environment that provides a compatible SciPy
+binary.
+
+CI also runs Ruff, builds the package distributions, and builds both Sphinx
+formats with warnings treated as errors. The wheel, source distribution, and
+PDF manual are retained as workflow artifacts. The HTML documentation is
+validated but is not uploaded as an artifact.
+
+The release workflow publishes the validated distribution artifacts with PyPI
+Trusted Publishing. Repository administrators must configure a protected
+``pypi`` GitHub environment and authorize ``python-publish.yml`` in the PyPI
+project's trusted-publisher settings before publishing a release.
+
 Regression fixtures
 -------------------
 
