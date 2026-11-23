@@ -60,6 +60,13 @@ control, weather, expected values, and tolerances. Multi-run collections are
 solved as independent single shots while reproducing AIRNET's documented
 prior-pressure property state where required.
 
+The regression harness reconstructs each variable node's mass balance from
+the stored link-flow results. A node satisfies this check when either its
+case-specific absolute residual threshold is met or its residual divided by
+the total absolute incident flow meets the run's relative airflow tolerance.
+This absolute-plus-relative check avoids making otherwise converged large-flow
+networks depend on sparse-solver rounding details.
+
 ``scripts\extract_airnet_reference.py`` converts archived AIRNET reports to
 JSON without consulting Python results. AFOUT.133's detailed English-unit
 report is converted back to SI with tolerances that account for its printed

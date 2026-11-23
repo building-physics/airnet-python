@@ -113,15 +113,44 @@ def assert_finite_results(model):
 
 
 def variable_node_mass_balance(model):
-    residuals = {
-        node.name: 0.0 for node in model.nodes.values() if node.variable
+    balances = {
+        node.name: {"residual": 0.0, "total_absolute_flow": 0.0}
+        for node in model.nodes.values()
+        if node.variable
     }
     for link in model.links:
+        flow = link.flow0 + link.flow1
         if link.node0.variable:
-            residuals[link.node0.name] += link.flow0 + link.flow1
+            balance = balances[link.node0.name]
+            balance["residual"] += flow
+            balance["total_absolute_flow"] += abs(flow)
         if link.node1.variable:
-            residuals[link.node1.name] -= link.flow0 + link.flow1
-    return residuals
+            balance = balances[link.node1.name]
+            balance["residual"] -= flow
+            balance["total_absolute_flow"] += abs(flow)
+    return balances
+
+
+def assert_variable_node_mass_balance(
+    model, *, absolute_tolerance, relative_tolerance
+):
+    for name, balance in variable_node_mass_balance(model).items():
+        absolute_residual = abs(balance["residual"])
+        total_absolute_flow = balance["total_absolute_flow"]
+        relative_residual = (
+            absolute_residual / total_absolute_flow
+            if total_absolute_flow > 0.0
+            else math.inf
+        )
+        assert (
+            absolute_residual <= absolute_tolerance
+            or relative_residual <= relative_tolerance
+        ), (
+            f"mass imbalance at {name}: absolute residual "
+            f"{absolute_residual:.9e} exceeds {absolute_tolerance:.9e} and "
+            f"relative residual {relative_residual:.9e} exceeds "
+            f"{relative_tolerance:.9e}"
+        )
 
 
 def load_collection_run(fixture_name, run_number):
@@ -252,10 +281,11 @@ def test_airnet_c_single_shot(fixture_name):
             abs=expected.get("flow_absolute", tolerances["flow_absolute"]),
         )
 
-    for name, residual in variable_node_mass_balance(model).items():
-        assert residual == pytest.approx(
-            0.0, abs=tolerances["mass_balance_absolute"]
-        ), f"mass imbalance at {name}"
+    assert_variable_node_mass_balance(
+        model,
+        absolute_tolerance=tolerances["mass_balance_absolute"],
+        relative_tolerance=case["run_control"]["relative_airflow_tolerance"],
+    )
 
 
 COLLECTION_FIXTURES = [
@@ -335,7 +365,8 @@ def test_airnet_c_collection_run(fixture_name, run_number):
             abs=tolerances["flow_absolute"],
         )
 
-    for name, residual in variable_node_mass_balance(model).items():
-        assert residual == pytest.approx(
-            0.0, abs=tolerances["mass_balance_absolute"]
-        ), f"mass imbalance at {name}"
+    assert_variable_node_mass_balance(
+        model,
+        absolute_tolerance=tolerances["mass_balance_absolute"],
+        relative_tolerance=run_control["relative_airflow_tolerance"],
+    )
