@@ -68,15 +68,13 @@ def load_case(name):
             "wind_direction_degrees": 0.0,
         },
     )
-    model = airnet.Model(
-        records,
-        weather=airnet.Weather(
-            ambient_temperature=weather["ambient_temperature_c"],
-            barometric_pressure=weather["barometric_pressure_pa"],
-            wind_speed=weather["wind_speed_m_per_s"],
-            wind_direction=weather["wind_direction_degrees"],
-            wind_profiles=wind_profiles or {},
-        ),
+    model = airnet.Model.read_airnet(records)
+    model.weather = airnet.Weather(
+        ambient_temperature=weather["ambient_temperature_c"],
+        barometric_pressure=weather["barometric_pressure_pa"],
+        wind_speed=weather["wind_speed_m_per_s"],
+        wind_direction=weather["wind_direction_degrees"],
+        wind_profiles=wind_profiles or {},
     )
     # AIRNET evaluates properties from the pressure state inherited from the
     # preceding run, then performs a fresh linear pressure initialization.
@@ -183,15 +181,13 @@ def load_collection_run(fixture_name, run_number):
         with (FIXTURE_DIRECTORY / "WIND").open(encoding="utf-8") as stream:
             wind_profiles = airnet.read_wind_profiles(stream)
     weather = run["weather"]
-    model = airnet.Model(
-        records,
-        weather=airnet.Weather(
-            ambient_temperature=weather["ambient_temperature_c"],
-            barometric_pressure=weather["barometric_pressure_pa"],
-            wind_speed=weather["wind_speed_m_per_s"],
-            wind_direction=weather["wind_direction_degrees"],
-            wind_profiles=wind_profiles or {},
-        ),
+    model = airnet.Model.read_airnet(records)
+    model.weather = airnet.Weather(
+        ambient_temperature=weather["ambient_temperature_c"],
+        barometric_pressure=weather["barometric_pressure_pa"],
+        wind_speed=weather["wind_speed_m_per_s"],
+        wind_direction=weather["wind_direction_degrees"],
+        wind_profiles=wind_profiles or {},
     )
     if run_number > 1:
         for node in model.nodes.values():

@@ -76,6 +76,16 @@ file and include them in the weather before binding it:
 Changing ``model.weather`` invalidates an existing solver. Construct a new
 solver for each weather scenario.
 
+``Model(elements, nodes, links)`` constructs a model from format-neutral domain
+objects and performs the network connectivity checks. This keeps the base class
+usable by models that populate those objects from another input format.
+``read_airnet`` is a class method: an inherited call such as
+``SpecializedModel.read_airnet(source)`` constructs and returns that subclass.
+In addition to paths and open text streams, it accepts an iterable of records
+already produced by :class:`airnet.reader.Reader`; this supports modifying
+parsed AIRNET records before model construction without moving AIRNET-specific
+logic back into the base constructor.
+
 Node pressures are in pascals and link flows in kg/s. ``flow0`` and ``flow1``
 are both meaningful for a two-way DOR link; one-way elements return zero in
 the second component. Constructing a solver assigns equation indices to

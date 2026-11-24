@@ -202,7 +202,7 @@ def test_afdata_dw1_duct_fields_match_domain_model():
     assert duct['ldlc'] == 0.0
     assert duct['linit'] == 128.0
 
-    model = airnet.Model(records)
+    model = airnet.Model.read_airnet(records)
     assert model.elements['duct-2x25'].length == 2.0
     assert model.elements['duct-2x25'].hdia == 0.25
 

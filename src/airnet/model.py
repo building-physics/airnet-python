@@ -181,15 +181,17 @@ class StaleSolverError(SolverError):
 class Model:
     """Physical network, environmental binding, and current solution state.
 
-    AIRNET network records may be constructed directly or read with
-    :meth:`read_airnet`. Weather is bound separately through :attr:`weather`.
+    The constructor accepts format-independent domain objects. AIRNET sources
+    are read and converted to those objects by :meth:`read_airnet`. Weather is
+    bound separately through :attr:`weather`.
     """
     supported_element_types = frozenset(
         {'plr', 'dwc', 'qfr', 'dor', 'cfr', 'fan', 'cpf', 'ckv'}
     )
 
-    @staticmethod
+    @classmethod
     def read_airnet(
+        cls,
         input_source,
         *,
         element_lookup: dict = object_lookup,
@@ -198,41 +200,53 @@ class Model:
         global_temperature: float | None = None,
         global_density: float | None = None,
     ):
-        """Read an AIRNET network source without binding run weather.
+        """Read and validate an AIRNET network without binding run weather.
 
-        ``input_source`` may be a path or an open text stream. AIRNET weather
-        and wind coefficients are separate run inputs, so the returned model's
-        :attr:`weather` is always ``None``.
+        Parameters
+        ----------
+        input_source : object
+            AIRNET input supplied as a path-like object, open text stream, or
+            iterable of dictionaries produced by
+            :class:`~airnet.reader.Reader`.
+        element_lookup : dict, optional
+            Mapping from AIRNET element type names to element classes.
+        node_object : type, optional
+            Node class constructed for AIRNET node records.
+        link_object : type, optional
+            Link class constructed for AIRNET link records.
+        global_temperature : float, optional
+            Temperature applied globally when weather is bound.
+        global_density : float, optional
+            Density applied globally when weather is bound.
+
+        Returns
+        -------
+        Model
+            An instance of ``cls`` containing the validated network. AIRNET
+            weather and wind coefficients are separate run inputs, so
+            :attr:`weather` is ``None``.
         """
-        options = {
-            'element_lookup': element_lookup,
-            'node_object': node_object,
-            'link_object': link_object,
-            'global_temperature': global_temperature,
-            'global_density': global_density,
-        }
         if hasattr(input_source, 'read'):
-            return Model(Reader(input_source), **options)
-        if not isinstance(input_source, (str, bytes, PathLike)):
-            raise TypeError('AIRNET input source must be a path or text stream')
-        with open(input_source, encoding='utf-8') as input_stream:
-            return Model(Reader(input_stream), **options)
-
-    def __init__(self, network_input, element_lookup:dict = object_lookup, node_object=Node,
-                 link_object=Link, global_temperature:float|None=None, global_density:float|None=None,
-                 weather:Weather|None=None):
-        self.title = ''
-        self.nodes = {}
-        self.links = []
-        self.elements = {}
-        self._weather = None
-        self._weather_revision = 0
-        self._global_temperature = global_temperature
-        self._global_density = global_density
+            network_input = Reader(input_source)
+        elif isinstance(input_source, (str, bytes, PathLike)):
+            with open(input_source, encoding='utf-8') as input_stream:
+                network_input = list(Reader(input_stream))
+        else:
+            try:
+                iter(input_source)
+            except TypeError as error:
+                raise TypeError(
+                    'AIRNET input source must be a path, text stream, or '
+                    'iterable of Reader records'
+                ) from error
+            network_input = input_source
 
         # Copy every record before removing construction-only fields. Reader
         # output is also part of the public API and remains owned by the caller.
-        links = []
+        title = ''
+        nodes = {}
+        elements = {}
+        link_records = []
         link_names = set()
         title_seen = False
         for input_record in network_input:
@@ -246,19 +260,19 @@ class Model:
                 if title_seen:
                     raise BadNetwork('Network input contains more than one title')
                 title_seen = True
-                self.title = record.get('title', '')
+                title = record.get('title', '')
             elif input_type == InputType.NODE:
                 try:
                     name = record['name']
                 except KeyError as error:
                     raise BadNetwork('Node record has no name') from error
-                if name in self.nodes:
+                if name in nodes:
                     raise DuplicateNetworkName(f'Node "{name}" is defined more than once')
                 node_type = record.pop('type', 'c')
                 if node_type not in {'a', 'c', 'v'}:
                     raise BadNetwork(f'Node "{name}" has invalid type "{node_type}"')
                 try:
-                    self.nodes[name] = node_object(
+                    nodes[name] = node_object(
                         variable=node_type == 'v', ambient=node_type == 'a', **record
                     )
                 except (TypeError, ValueError) as error:
@@ -271,7 +285,7 @@ class Model:
                 if name in link_names:
                     raise DuplicateNetworkName(f'Link "{name}" is defined more than once')
                 link_names.add(name)
-                links.append(record)
+                link_records.append(record)
             elif input_type == InputType.ELEMENT:
                 try:
                     element_type = record.pop('type')
@@ -280,7 +294,7 @@ class Model:
                     raise BadNetwork(
                         f'Element record has no {error.args[0]}'
                     ) from error
-                if name in self.elements:
+                if name in elements:
                     raise DuplicateNetworkName(
                         f'Element "{name}" is defined more than once'
                     )
@@ -290,7 +304,7 @@ class Model:
                     )
                 if (
                     element_lookup is object_lookup
-                    and element_type not in self.supported_element_types
+                    and element_type not in cls.supported_element_types
                 ):
                     raise UnsupportedNetworkFeature(
                         f'Element "{name}" uses unsupported solver element '
@@ -312,15 +326,14 @@ class Model:
                         f'Element "{name}" does not implement '
                         f'{", ".join(missing_methods)}'
                     )
-                self.elements[name] = element
+                elements[name] = element
             else:
                 raise UnsupportedNetworkFeature(
                     f'Unsupported network input type: {input_type!r}'
                 )
 
-        adjacency = {name: set() for name in self.nodes}
-        pressure_adjacency = {name: set() for name in self.nodes}
-        for link in links:
+        links = []
+        for link in link_records:
             name = link['name']
             wind = link.get('wind')
             wpmod = link.get('wpmod', 0.0)
@@ -342,24 +355,24 @@ class Model:
                 raise BadNetwork(
                     f'Link "{name}" has no {error.args[0]}'
                 ) from error
-            if node0_name not in self.nodes:
+            if node0_name not in nodes:
                 raise MissingNetworkReference(
                     f'Link "{name}" references undefined node "{node0_name}"'
                 )
-            if node1_name not in self.nodes:
+            if node1_name not in nodes:
                 raise MissingNetworkReference(
                     f'Link "{name}" references undefined node "{node1_name}"'
                 )
-            if element_name not in self.elements:
+            if element_name not in elements:
                 raise MissingNetworkReference(
                     f'Link "{name}" references undefined element "{element_name}"'
                 )
             if node0_name == node1_name:
                 raise BadNetwork(f'Link "{name}" connects node "{node0_name}" to itself')
 
-            node0 = self.nodes[node0_name]
-            node1 = self.nodes[node1_name]
-            element = self.elements[element_name]
+            node0 = nodes[node0_name]
+            node1 = nodes[node1_name]
+            element = elements[element_name]
             if 'control' in link and 'ctrl' in link:
                 raise BadNetwork(
                     f'Link "{name}" defines both control and ctrl'
@@ -374,17 +387,12 @@ class Model:
                     f'Link "{name}" controls an element that AIRNET does not control'
                 )
             link['control'] = control
-            adjacency[node0_name].add(node1_name)
-            adjacency[node1_name].add(node0_name)
-            if element.type() not in ['ckv', 'cfr']:
-                pressure_adjacency[node0_name].add(node1_name)
-                pressure_adjacency[node1_name].add(node0_name)
             if wind in (None, 'null'):
                 link['wind'] = None
             else:
                 link['wind'] = wind
             try:
-                self.links.append(
+                links.append(
                     link_object(
                         node0=node0,
                         ht0=ht0,
@@ -398,15 +406,91 @@ class Model:
             except (TypeError, ValueError) as error:
                 raise BadNetwork(f'Link "{name}" has invalid data: {error}') from error
 
-        disconnected = sorted(name for name, neighbors in adjacency.items() if not neighbors)
+        return cls(
+            elements,
+            nodes,
+            links,
+            title=title,
+            global_temperature=global_temperature,
+            global_density=global_density,
+        )
+
+    def __init__(
+        self,
+        elements,
+        nodes,
+        links,
+        *,
+        title: str = '',
+        global_temperature: float | None = None,
+        global_density: float | None = None,
+        weather: Weather | None = None,
+    ):
+        """Create a model from format-independent domain objects.
+
+        Parameters
+        ----------
+        elements : dict
+            Airflow elements keyed by model-unique name.
+        nodes : dict
+            Pressure nodes keyed by model-unique name.
+        links : list
+            Links connecting objects in ``nodes`` and carrying objects in
+            ``elements``.
+        title : str, optional
+            Descriptive model title.
+        global_temperature : float, optional
+            Temperature applied globally when weather is bound.
+        global_density : float, optional
+            Density applied globally when weather is bound.
+        weather : Weather, optional
+            Environmental state to bind after network validation.
+
+        Raises
+        ------
+        BadNetwork
+            If a node is disconnected or a variable-pressure component has no
+            initialization path to a fixed-pressure node.
+        MissingNetworkReference
+            If a link refers to a node outside ``nodes``.
+        """
+        self.title = title
+        self.nodes = nodes
+        self.links = links
+        self.elements = elements
+        self._weather = None
+        self._weather_revision = 0
+        self._global_temperature = global_temperature
+        self._global_density = global_density
+
+        adjacency = {name: set() for name in self.nodes}
+        pressure_adjacency = {name: set() for name in self.nodes}
+        for link in self.links:
+            node0_name = link.node0.name
+            node1_name = link.node1.name
+            if node0_name not in self.nodes:
+                raise MissingNetworkReference(
+                    f'Link "{link.name}" references undefined node "{node0_name}"'
+                )
+            if node1_name not in self.nodes:
+                raise MissingNetworkReference(
+                    f'Link "{link.name}" references undefined node "{node1_name}"'
+                )
+            adjacency[node0_name].add(node1_name)
+            adjacency[node1_name].add(node0_name)
+            if link.element.type() not in ['ckv', 'cfr']:
+                pressure_adjacency[node0_name].add(node1_name)
+                pressure_adjacency[node1_name].add(node0_name)
+
+        disconnected = sorted(
+            name for name, neighbors in adjacency.items() if not neighbors
+        )
         if disconnected:
             raise BadNetwork(f'Disconnected nodes found: {", ".join(disconnected)}')
 
         visited = set()
         for start, start_node in self.nodes.items():
-            if not start_node.variable:
-                continue
-            if start in visited:
+            if not start_node.variable or start in visited:
                 continue
             pending = [start]
             component = []

@@ -31,15 +31,61 @@ link   link-3   node-3   0.0   node-4   0.0   orf-0.0001   null
 
 *********'''
 
+
 class AltModel(airnet.Model):
     def set_variable_properties(self):
         pass
+
+
+def model_from_airnet_records(records, *, weather=None, **options):
+    model = airnet.Model.read_airnet(records, **options)
+    if weather is not None:
+        model.weather = weather
+    return model
+
+
+def test_model_constructor_accepts_format_neutral_domain_objects():
+    airnet_model = airnet.Model.read_airnet(
+        airnet.Reader(iter(AFDATA_PL2.splitlines()))
+    )
+
+    model = airnet.Model(
+        airnet_model.elements,
+        airnet_model.nodes,
+        airnet_model.links,
+        title='direct construction',
+    )
+
+    assert model.elements is airnet_model.elements
+    assert model.nodes is airnet_model.nodes
+    assert model.links is airnet_model.links
+    assert model.title == 'direct construction'
+    assert model.weather is None
+
+
+def test_model_constructor_rejects_disconnected_domain_node():
+    airnet_model = airnet.Model.read_airnet(
+        airnet.Reader(iter(AFDATA_PL2.splitlines()))
+    )
+    node = airnet_model.nodes['node-1']
+
+    with pytest.raises(airnet.BadNetwork, match='Disconnected nodes found'):
+        airnet.Model({}, {node.name: node}, [])
+
+
+def test_read_airnet_constructs_the_invoking_subclass():
+    model = AltModel.read_airnet(airnet.Reader(iter(AFDATA_PL2.splitlines())))
+
+    assert isinstance(model, AltModel)
+    assert len(model.nodes) == 4
+    assert len(model.links) == 3
+
 
 def test_model_creation():
     reader = airnet.Reader(iter(AFDATA_PL2.splitlines()))
     items = list(reader)
 
-    model = airnet.Model(items, weather=airnet.Weather())
+    model = model_from_airnet_records(items, weather=airnet.Weather())
     assert len(model.nodes) == 4
     assert sum(node.variable for node in model.nodes.values()) == 2
     assert len(model.links) == 3
@@ -116,7 +162,7 @@ def test_model_creation():
 
 
 def test_linear_initialization_uses_flow_direction_density():
-    model = airnet.Model(
+    model = model_from_airnet_records(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
 
@@ -126,7 +172,7 @@ def test_linear_initialization_uses_flow_direction_density():
 
 
 def test_steady_solve_reports_nonconvergence():
-    model = airnet.Model(
+    model = model_from_airnet_records(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
     solver = airnet.Solver(model)
@@ -142,7 +188,7 @@ def test_steady_solve_reports_nonconvergence():
 
 
 def test_initialization_reports_linear_solver_failure(monkeypatch):
-    model = airnet.Model(
+    model = model_from_airnet_records(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
 
@@ -160,7 +206,7 @@ def test_initialization_reports_linear_solver_failure(monkeypatch):
 
 
 def test_steady_solve_reports_linear_correction_failure(monkeypatch):
-    model = airnet.Model(
+    model = model_from_airnet_records(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
     solver = airnet.Solver(model)
@@ -181,7 +227,7 @@ def test_steady_solve_reports_linear_correction_failure(monkeypatch):
 
 
 def test_steady_solve_rejects_non_finite_element_results(monkeypatch):
-    model = airnet.Model(
+    model = model_from_airnet_records(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
     solver = airnet.Solver(model)
@@ -311,7 +357,7 @@ def two_way_network(variable_node=True):
 
 
 def test_steady_solve_assembles_two_way_flow_and_jacobian_components():
-    model = airnet.Model(
+    model = model_from_airnet_records(
         two_way_network(),
         element_lookup={'two': TwoWayElement},
         weather=airnet.Weather(),
@@ -329,7 +375,7 @@ def test_steady_solve_assembles_two_way_flow_and_jacobian_components():
 
 
 def test_solver_matrix_matches_finite_difference_of_assembled_residual():
-    model = airnet.Model(
+    model = model_from_airnet_records(
         two_way_network(),
         element_lookup={'two': TwoWayElement},
         weather=airnet.Weather(),
@@ -361,7 +407,7 @@ def test_solver_matrix_matches_finite_difference_of_assembled_residual():
 
 
 def test_steady_solve_retains_fixed_to_fixed_two_way_flows():
-    model = airnet.Model(
+    model = model_from_airnet_records(
         two_way_network(variable_node=False),
         element_lookup={'two': TwoWayElement},
         weather=airnet.Weather(),
@@ -439,7 +485,7 @@ def test_cfr_uses_negative_multiplier_when_link_is_reordered():
             },
         ]
     )
-    model = airnet.Model(records, weather=airnet.Weather())
+    model = model_from_airnet_records(records, weather=airnet.Weather())
 
     solver = airnet.Solver(model)
     solver.initialize(maxiter=10)
@@ -484,7 +530,7 @@ def test_ckv_uses_negative_multiplier_when_link_is_reordered():
             },
         ]
     )
-    model = airnet.Model(records, weather=airnet.Weather())
+    model = model_from_airnet_records(records, weather=airnet.Weather())
 
     solver = airnet.Solver(model)
     solver.initialize(maxiter=10)
@@ -514,7 +560,7 @@ def test_qfr_uses_passive_element_initialization_sign():
             'b': 3.0,
         }
     )
-    model = airnet.Model(records, weather=airnet.Weather())
+    model = model_from_airnet_records(records, weather=airnet.Weather())
 
     airnet.Solver(model).initialize(maxiter=10)
 
@@ -526,7 +572,7 @@ def test_model_construction_does_not_mutate_input_records():
     records = valid_network_records()
     original = copy.deepcopy(records)
 
-    airnet.Model(records)
+    model_from_airnet_records(records)
 
     assert records == original
 
@@ -544,7 +590,7 @@ def test_model_rejects_duplicate_names(record_name, exception, message):
     records.append(copy.deepcopy(record_named(records, record_name)))
 
     with pytest.raises(exception, match=message):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 @pytest.mark.parametrize(
@@ -559,7 +605,7 @@ def test_model_rejects_missing_link_references(field, missing_name, message):
     record_named(records, 'connection')[field] = missing_name
 
     with pytest.raises(airnet.MissingNetworkReference, match=message):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 def test_model_rejects_disconnected_nodes():
@@ -576,7 +622,7 @@ def test_model_rejects_disconnected_nodes():
     )
 
     with pytest.raises(airnet.BadNetwork, match='Disconnected nodes found: unconnected'):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 def test_model_rejects_variable_component_without_fixed_pressure_node():
@@ -589,7 +635,7 @@ def test_model_rejects_variable_component_without_fixed_pressure_node():
         airnet.BadNetwork,
         match='Variable-pressure component has no linear-initialization path',
     ):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 def test_constant_flow_does_not_anchor_variable_pressure_component():
@@ -609,7 +655,7 @@ def test_constant_flow_does_not_anchor_variable_pressure_component():
         airnet.BadNetwork,
         match='no linear-initialization path to a fixed-pressure node',
     ):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 def test_check_valve_does_not_anchor_linear_initialization():
@@ -630,7 +676,7 @@ def test_check_valve_does_not_anchor_linear_initialization():
         airnet.BadNetwork,
         match='no linear-initialization path to a fixed-pressure node',
     ):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 def test_model_constructs_supported_fan_element():
@@ -663,7 +709,7 @@ def test_model_constructs_supported_fan_element():
             }
         )
 
-    model = airnet.Model(records)
+    model = model_from_airnet_records(records)
 
     assert model.elements['opening'].type() == 'fan'
 
@@ -679,7 +725,7 @@ def test_model_rejects_unsupported_link_features(updates, message):
     record_named(records, 'connection').update(updates)
 
     with pytest.raises(airnet.UnsupportedNetworkFeature, match=message):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 def test_model_rejects_missing_wind_profile():
@@ -688,7 +734,7 @@ def test_model_rejects_missing_wind_profile():
         {'wind': 'missing-profile', 'wpmod': 1.0}
     )
 
-    model = airnet.Model(records)
+    model = model_from_airnet_records(records)
 
     with pytest.raises(
         airnet.MissingNetworkReference, match='undefined wind profile'
@@ -718,7 +764,7 @@ def test_model_applies_interpolated_wind_pressure_in_stored_orientation():
         wind_direction=11.25,
         wind_profiles={'constant': profile},
     )
-    model = airnet.Model(records, weather=weather)
+    model = model_from_airnet_records(records, weather=weather)
     airnet.Solver(model)
     model.compute_pressure_drops()
 
@@ -735,7 +781,7 @@ def test_stack_pressure_uses_average_density_before_flow_direction_is_known():
     link['ht-1'] = 5.0
     link['ht-2'] = 0.0
 
-    model = airnet.Model(records, weather=airnet.Weather())
+    model = model_from_airnet_records(records, weather=airnet.Weather())
     airnet.Solver(model)
     model.compute_pressure_drops()
 
@@ -762,14 +808,14 @@ def test_model_rejects_nonpositive_link_multiplier():
     with pytest.raises(
         airnet.BadNetwork, match='multiplier must be finite and positive'
     ):
-        airnet.Model(records)
+        model_from_airnet_records(records)
 
 
 def test_model_accepts_positive_link_multiplier():
     records = valid_network_records()
     record_named(records, 'connection')['mult'] = 2.5
 
-    model = airnet.Model(records)
+    model = model_from_airnet_records(records)
 
     assert model.links[0].multiplier == 2.5
 
@@ -778,7 +824,7 @@ def test_model_uses_weather_temperature_for_ambient_node():
     records = valid_network_records()
     record_named(records, 'fixed')['type'] = 'a'
 
-    model = airnet.Model(
+    model = model_from_airnet_records(
         records, weather=airnet.Weather(ambient_temperature=-5.0)
     )
 
@@ -813,7 +859,7 @@ def test_weather_binding_is_atomic_when_wind_profile_is_missing():
         ambient_temperature=10.0,
         wind_profiles={'constant': profile},
     )
-    model = airnet.Model(records, weather=original_weather)
+    model = model_from_airnet_records(records, weather=original_weather)
     original_properties = {
         name: (node.temperature, node.density, node.viscosity)
         for name, node in model.nodes.items()
@@ -838,7 +884,7 @@ def test_weather_rebinding_deterministically_refreshes_derived_properties():
         ambient_temperature=10.0,
         barometric_pressure=101325.0,
     )
-    model = airnet.Model(records, weather=original_weather)
+    model = model_from_airnet_records(records, weather=original_weather)
 
     def property_state():
         return {
@@ -867,7 +913,7 @@ def test_weather_rebinding_deterministically_refreshes_derived_properties():
 
 
 def test_solver_solves_and_rejects_rebound_weather():
-    model = airnet.Model(
+    model = model_from_airnet_records(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
     solver = airnet.Solver(model)
@@ -888,7 +934,7 @@ def test_solver_owns_workspace_and_assigns_indices_on_model_nodes():
         connection['node-2'],
         connection['node-1'],
     )
-    model = airnet.Model(records, weather=airnet.Weather())
+    model = model_from_airnet_records(records, weather=airnet.Weather())
     link = model.links[0]
 
     assert model.nodes['variable'].index is None
@@ -938,7 +984,7 @@ def test_input_oriented_link_results_reverse_solver_normalization():
         connection['node-2'],
         connection['node-1'],
     )
-    model = airnet.Model(records, weather=airnet.Weather())
+    model = model_from_airnet_records(records, weather=airnet.Weather())
     link = model.links[0]
     airnet.Solver(model)
     link.pdrop = -3.0
@@ -951,7 +997,7 @@ def test_input_oriented_link_results_reverse_solver_normalization():
 
 
 def test_transient_step_is_explicitly_unsupported_without_model_mutation():
-    model = airnet.Model(
+    model = model_from_airnet_records(
         airnet.Reader(iter(AFDATA_PL2.splitlines())), weather=airnet.Weather()
     )
     solver = airnet.Solver(model)
