@@ -1,0 +1,43 @@
+{
+  "case": "DR1",
+  "scenario": "full historical doorway and distributed openings",
+  "network": "AFDATA.DR1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.DR1",
+  "source_run": 1,
+  "run_control": {
+    "maximum_iterations": 30,
+    "relative_airflow_tolerance": 0.0001,
+    "absolute_airflow_tolerance": 0.000001,
+    "relaxation_coefficient": 0.75
+  },
+  "weather": {
+    "ambient_temperature_c": 20.0,
+    "barometric_pressure_pa": 101325.0,
+    "wind_speed_m_per_s": 0.0,
+    "wind_direction_degrees": 0.0
+  },
+  "expected_iterations": 3,
+  "nodes": {
+    "node-1": {"pressure": 0.0},
+    "node-2": {"pressure": 0.0003940276}
+  },
+  "links": {
+    "link-1": {"flow_count": 1, "pressure_drop": -0.1453173, "flow0": -0.07357871, "flow1": 0.0},
+    "link-2": {"flow_count": 1, "pressure_drop": -0.1131121, "flow0": -0.06491546, "flow1": 0.0},
+    "link-3": {"flow_count": 1, "pressure_drop": -0.08090696, "flow0": -0.05490178, "flow1": 0.0},
+    "link-4": {"flow_count": 1, "pressure_drop": -0.04870179, "flow0": -0.04259572, "flow1": 0.0},
+    "link-5": {"flow_count": 1, "pressure_drop": -0.01649662, "flow0": -0.02479082, "flow1": 0.0},
+    "link-6": {"flow_count": 1, "pressure_drop": 0.01570856, "flow0": 0.02435705, "flow1": 0.0},
+    "link-7": {"flow_count": 1, "pressure_drop": 0.04791374, "flow0": 0.04253893, "flow1": 0.0},
+    "link-8": {"flow_count": 1, "pressure_drop": 0.08011892, "flow0": 0.05500777, "flow1": 0.0},
+    "link-9": {"flow_count": 1, "pressure_drop": 0.1123241, "flow0": 0.06513178, "flow1": 0.0},
+    "link-10": {"flow_count": 1, "pressure_drop": 0.1445293, "flow0": 0.07388127, "flow1": 0.0},
+    "link-11": {"flow_count": 2, "pressure_drop": 0.1606319, "flow0": -0.2591267, "flow1": 0.2589924}
+  },
+  "tolerances": {
+    "relative": 0.000001,
+    "pressure_absolute": 0.0000005,
+    "flow_absolute": 0.0000001,
+    "mass_balance_absolute": 0.000001
+  }
+}

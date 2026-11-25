@@ -1,0 +1,48 @@
+/*subfile:  afdata.pl3  ******************************************************/
+/
+title  powerlaw test #3 input file
+
+node   node-1    c   0.0   20.0    0.0
+node   node-2    v   0.0   20.0
+node   node-3    v   0.0   20.0
+node   node-4    v   0.0   20.0
+node   node-5    v   0.0   20.0
+node   node-6    v   0.0   20.0
+node   node-7    v   0.0   20.0
+node   node-8    v   0.0   20.0
+node   node-9    v   0.0   20.0
+node   node-10   v   0.0   20.0
+node   node-11   v   0.0   20.0
+node   node-12   c   0.0   20.0  -100.0
+
+element  orf-0.0001 plr 7.2e-9    7.2e-9     8.48528e-5   0.5  orf - 0.0001 m^2
+element  orf-0.0004 plr 5.76e-8   5.76e-8    3.39411e-4   0.5  orf - 0.0004 m^2
+element  orf-0.0009 plr 1.944e-7  1.944e-7   7.63675e-4   0.5  orf - 0.0009 m^2
+element  orf-0.0025 plr 9.0e-7    9.0e-7     0.00212132   0.5  orf - 0.0025 m^2
+element  orf-0.0036 plr 1.555e-6  1.555e-6   0.00305470   0.5  orf - 0.0036 m^2
+element  orf-0.0100 plr 7.2e-6    7.2e-6     0.00848528   0.5  orf - 0.01 m^2
+element  orf-1.0000 plr 0.0072    0.0072     0.848528     0.5  orf - 1.0 m^2
+element  orf-4.0000 plr 0.0576    0.0576     3.394113     0.5  orf - 4.0 m^2
+
+link  link-1  node-2  0.0  node-3  0.0  orf-0.0100  null
+link  link-2  node-2  0.0  node-3  0.0  orf-1.0000  null
+link  link-3  node-2  0.0  node-3  0.0  orf-4.0000  null
+link  link-4  node-3  0.0  node-4  0.0  orf-0.0025  null
+link  link-5  node-3  0.0  node-4  0.0  orf-0.0036  null
+link  link-6  node-4  0.0  node-11 0.0  orf-1.0000  null
+link  link-7  node-4  0.0  node-11 0.0  orf-1.0000  null
+link  link-8  node-4  0.0  node-11 0.0  orf-1.0000  null
+link  link-9  node-1  0.0  node-2  0.0  orf-1.0000  null
+link  link-10 node-2  0.0  node-5  0.0  orf-1.0000  null
+link  link-11 node-5  0.0  node-6  0.0  orf-0.0001  null
+link  link-12 node-6  0.0  node-7  0.0  orf-1.0000  null
+link  link-13 node-7  0.0  node-8  0.0  orf-0.0004  null
+link  link-14 node-8  0.0  node-11 0.0  orf-4.0000  null
+link  link-15 node-2  0.0  node-9  0.0  orf-0.0004  null
+link  link-16 node-9  0.0  node-10 0.0  orf-4.0000  null
+link  link-17 node-9  0.0  node-10 0.0  orf-0.0001  null
+link  link-18 node-9  0.0  node-10 0.0  orf-1.0000  null
+link  link-19 node-10 0.0  node-11 0.0  orf-0.0009  null
+link  link-20 node-11 0.0  node-12 0.0  orf-1.0000  null
+
+*********

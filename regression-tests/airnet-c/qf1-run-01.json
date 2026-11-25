@@ -1,0 +1,49 @@
+{
+  "case": "QF1",
+  "scenario": "first unmodified run",
+  "network": "AFDATA.QF1",
+  "source_report": "reviewed AIRNET-C run using the corrected QFR initialization",
+  "source_run": 1,
+  "notes": "AIRNET-C and Python both converge in exactly two iterations after correcting the QFR linear initialization residual flow to -pdrop/a.",
+  "run_control": {
+    "maximum_iterations": 30,
+    "relative_airflow_tolerance": 0.0001,
+    "absolute_airflow_tolerance": 0.000001,
+    "relaxation_coefficient": 0.75
+  },
+  "weather": {
+    "ambient_temperature_c": 20.0,
+    "barometric_pressure_pa": 101325.0,
+    "wind_speed_m_per_s": 0.0,
+    "wind_direction_degrees": 0.0
+  },
+  "expected_iterations": 2,
+  "nodes": {
+    "source": {"pressure": 0.01},
+    "duct-1": {"pressure": 0.008},
+    "duct-2": {"pressure": 0.005},
+    "dplr-1": {"pressure": 0.007999998},
+    "dplr-2": {"pressure": 0.004999998},
+    "dqfr-1": {"pressure": 0.008000001},
+    "dqfr-2": {"pressure": 0.004999998},
+    "sink": {"pressure": 0.0}
+  },
+  "links": {
+    "duct-0": {"flow_count": 1, "pressure_drop": 0.01, "flow0": 0.004924572, "flow1": 0.0},
+    "duct-1": {"flow_count": 1, "pressure_drop": 0.002, "flow0": 0.004924572, "flow1": 0.0},
+    "duct-2": {"flow_count": 1, "pressure_drop": 0.003, "flow0": 0.004924571, "flow1": 0.0},
+    "duct-3": {"flow_count": 1, "pressure_drop": 0.005, "flow0": 0.004924572, "flow1": 0.0},
+    "dplr-1": {"flow_count": 1, "pressure_drop": 0.002000002, "flow0": 0.004530217, "flow1": 0.0},
+    "dplr-2": {"flow_count": 1, "pressure_drop": 0.002999999, "flow0": 0.004530217, "flow1": 0.0},
+    "dplr-3": {"flow_count": 1, "pressure_drop": 0.004999998, "flow0": 0.004530217, "flow1": 0.0},
+    "dqfr-1": {"flow_count": 1, "pressure_drop": 0.001999998, "flow0": 0.004062676, "flow1": 0.0},
+    "dqfr-2": {"flow_count": 1, "pressure_drop": 0.003000003, "flow0": 0.004062676, "flow1": 0.0},
+    "dqfr-3": {"flow_count": 1, "pressure_drop": 0.004999998, "flow0": 0.004062677, "flow1": 0.0}
+  },
+  "tolerances": {
+    "relative": 0.000001,
+    "pressure_absolute": 0.000000005,
+    "flow_absolute": 0.000000005,
+    "mass_balance_absolute": 0.000001
+  }
+}

@@ -1,0 +1,16 @@
+/
+title  wind pressure test #2 input file
+
+node   node-1    c   0.0   20.0    0.0
+node   node-2    v   0.0   20.0
+node   node-3    v   0.0   20.0
+node   node-4    c   0.0   20.0    0.0
+
+element  orf-0.001  plr 2.2769e-7 2.2769e-7 0.000848528 0.5
+element  orf-0.010  plr 7.2e-6 7.2e-6 0.00848528 0.5
+
+link   link-1   node-1   0.0   node-2   0.0   orf-0.001   north   2.0
+link   link-2   node-2   0.0   node-3   0.0   orf-0.010   null
+link   link-3   node-4   0.0   node-3   0.0   orf-0.001   south   2.0
+
+*********

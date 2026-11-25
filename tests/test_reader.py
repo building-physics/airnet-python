@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: 2023-present Oak Ridge National Laboratory, managed by UT-Battelle
 #
 # SPDX-License-Identifier: BSD-3-Clause
+import pytest
+
 import airnet
+
 
 def test_afdata_short_lines():
     bad_elements = [['element  flow-1.000 cfr', 'element cpt1 plr 0.000399207'],
@@ -34,27 +37,15 @@ def test_afdata_short_lines():
 
     for el in bad_elements:
       reader = airnet.Reader(iter(el))
-      results = []
 
-      try:
-          for item in reader:
-              results.append(item)
-      except airnet.BadNetworkInput:
-          pass
-
-      assert len(results) == 0
+      with pytest.raises(airnet.BadNetworkInput):
+          list(reader)
 
     for el in bad_elements:
       reader = airnet.Reader(iter(el), floats=False)
-      results = []
 
-      try:
-          for item in reader:
-              results.append(item)
-      except airnet.BadNetworkInput:
-          pass
-
-      assert len(results) == 0
+      with pytest.raises(airnet.BadNetworkInput):
+          list(reader)
 
 AFDATA_CP1 = '''/*subfile:  afdata.cp1  ******************************************************/
 /
@@ -75,10 +66,7 @@ link   link-2   node-2   0.0   node-1   0.0   cpt1    null
 
 def test_afdata_cp1():
     reader = airnet.Reader(iter(AFDATA_CP1.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 7
     assert results[3]['input_type'] == airnet.InputType.ELEMENT
@@ -105,11 +93,8 @@ def test_afdata_cpx():
     reader = airnet.Reader(iter(AFDATA_CPX.splitlines()))
     results = []
 
-    try:
-        for item in reader:
-          results.append(item)
-    except airnet.BadNetworkInput:
-        pass
+    with pytest.raises(airnet.BadNetworkInput):
+        results.extend(reader)
     
     assert len(results) == 3
     assert results[2]['input_type'] == airnet.InputType.NODE
@@ -135,10 +120,7 @@ link   link-2   node-2   0.0   node-3   0.0   test       null
 
 def test_afdata_cv1():
     reader = airnet.Reader(iter(AFDATA_CV1.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 8
     assert results[5]['input_type'] == airnet.InputType.ELEMENT
@@ -173,10 +155,7 @@ link   link-11  node-1  -1.0   node-2  -1.0   dor-1.60   null
 
 def test_afdata_dr1():
     reader = airnet.Reader(iter(AFDATA_DR1.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 16
     assert results[2]['input_type'] == airnet.InputType.NODE
@@ -209,6 +188,24 @@ link   link-4   node-1   0.0   node-4   0.0   duct-10x25  null
 
 '''
 
+
+def test_afdata_dw1_duct_fields_match_domain_model():
+    records = list(airnet.Reader(iter(AFDATA_DW1.splitlines())))
+    duct = next(record for record in records if record.get('name') == 'duct-2x25')
+
+    assert duct['length'] == 2.0
+    assert duct['hdia'] == 0.25
+    assert duct['area'] == 0.04909
+    assert duct['rough'] == 0.00015
+    assert duct['tdlc'] == 0.0
+    assert duct['lflc'] == 64.0
+    assert duct['ldlc'] == 0.0
+    assert duct['linit'] == 128.0
+
+    model = airnet.Model.read_airnet(records)
+    assert model.elements['duct-2x25'].length == 2.0
+    assert model.elements['duct-2x25'].hdia == 0.25
+
 AFDATA_CF1 = '''/*subfile:  afdata.cf1  ******************************************************/
 /
 title constant flow test #1 input file
@@ -229,10 +226,7 @@ link   link-2   node-2   0.0   node-3   0.0   flow-1.000   null
 
 def test_afdata_cf1():
     reader = airnet.Reader(iter(AFDATA_CF1.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 8
     assert results[2]['input_type'] == airnet.InputType.NODE
@@ -289,14 +283,18 @@ element fan-A fan 8.1216e-06 8.1216e-06 0.00848528 0.5 ! Osborne fan A
 
 def test_afdata_fn1():
     reader = airnet.Reader(iter(AFDATA_FN1.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 8
     assert results[4]['type'] == 'fan'
     assert results[5]['expt'] == 0.5
+    assert results[4]['pts'][0] == {
+        'a1': 764.429,
+        'a2': -18.2932,
+        'a3': 19.4639,
+        'a4': -7.63948,
+        'mf': -10000.0,
+    }
 
 AFDATA_FN2 = '''/*subfile:  afdata.fn2  ******************************************************/
 /
@@ -438,10 +436,7 @@ link   link-2   node-2   0.0   node-3   0.0   orf-0.04   null
 
 def test_afdata_pl1():
     reader = airnet.Reader(iter(AFDATA_PL1.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 8
     assert results[4]['expt'] == 0.5
@@ -471,11 +466,8 @@ def test_afdata_pl1_title():
     reader = airnet.Reader(iter(AFDATA_PL1_TITLE.splitlines()))
     results = []
 
-    try:
-      for item in reader:
-          results.append(item)
-    except airnet.BadNetworkInput:
-        pass
+    with pytest.raises(airnet.BadNetworkInput):
+        results.extend(reader)
 
     assert len(results) == 4
     assert results[0]['input_type'] == airnet.InputType.TITLE
@@ -504,11 +496,8 @@ def test_afdata_pl1_bad_node_1():
     reader = airnet.Reader(iter(AFDATA_PL1_BAD_NODE_1.splitlines()))
     results = []
 
-    try:
-      for item in reader:
-          results.append(item)
-    except airnet.BadNetworkInput:
-        pass
+    with pytest.raises(airnet.BadNetworkInput):
+        results.extend(reader)
 
     assert len(results) == 2
     assert results[0]['input_type'] == airnet.InputType.TITLE
@@ -537,11 +526,8 @@ def test_afdata_pl1_bad_node_2():
     reader = airnet.Reader(iter(AFDATA_PL1_BAD_NODE_2.splitlines()))
     results = []
 
-    try:
-      for item in reader:
-          results.append(item)
-    except airnet.BadNetworkInput:
-        pass
+    with pytest.raises(airnet.BadNetworkInput):
+        results.extend(reader)
 
     assert len(results) == 2
     assert results[0]['input_type'] == airnet.InputType.TITLE
@@ -672,10 +658,7 @@ element orf-100.0 plr 8.12434 8.12434 84.8528 0.5 ! orifice - 100.0 m^2
 
 def test_afdata_pl2():
     reader = airnet.Reader(iter(AFDATA_PL2.splitlines()), floats=False)
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 15
     assert results[5]['expt'] == '0.5'
@@ -815,10 +798,7 @@ link   dqfr-3   dqfr-2   0.0   sink     0.0   dqfr-5x25   null
 
 def test_afdata_qf1():
     reader = airnet.Reader(iter(AFDATA_QF1.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 29
 
@@ -949,10 +929,7 @@ link   link-3   node-4   0.0   node-3   0.0   orf-0.001   south   2.0
 '''
 def test_afdata_wp2():
     reader = airnet.Reader(iter(AFDATA_WP2.splitlines()))
-    results = []
-
-    for item in reader:
-        results.append(item)
+    results = list(reader)
 
     assert len(results) == 10
     assert results[5]['expt'] == 0.5

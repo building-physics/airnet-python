@@ -1,0 +1,15 @@
+/*subfile:  afdata.cf1  ******************************************************/
+/
+constant flow test #1 input file
+
+node   node-1    c   0.0   20.0    0.0
+node   node-2    v   0.0   20.0
+node   node-3    c   0.0   20.0    0.0
+
+element  orf-0.1000 plr 2.2769e-4 2.2769e-4  0.0848528    0.5  orf - 0.1 m^2
+element  flow-1.000 cfr 1.0                       constant flow of 1.000 kg/s
+
+link   link-1   node-1   0.0   node-2   0.0   orf-0.1000   null
+link   link-2   node-2   0.0   node-3   0.0   flow-1.000   null
+
+*********

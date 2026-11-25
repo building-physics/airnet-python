@@ -1,0 +1,15 @@
+/*subfile:  afdata.pl1  ******************************************************/
+/
+title  powerlaw test #1 input file
+
+node   node-1    c   0.0   20.0    0.0
+node   node-2    v   0.0   20.0
+node   node-3    c   0.0   20.0   -1.0
+
+element  orf-0.01  plr  7.2e-6  7.2e-6  0.00848528  0.5   orifice - 0.01 m^2
+element  orf-0.04  plr  5.76e-5 5.76e-5 0.03394113  0.5   orifice - 0.04 m^2
+
+link   link-1   node-1   0.0   node-2   0.0   orf-0.01   null
+link   link-2   node-2   0.0   node-3   0.0   orf-0.04   null
+
+*********

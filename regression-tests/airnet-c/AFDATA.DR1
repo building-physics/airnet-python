@@ -1,0 +1,23 @@
+/
+title  doorway test #1 input file
+
+node   node-1    c   0.0   18.0    0.0
+node   node-2    v   0.0   22.0
+
+element  orf-0.16  plr  0.0015575 0.0015575  0.176494  .500
+element  dor-1.60  dor  0.015575  0.015575   1.76494   .500
+                        0.0001    2.0       0.8        0.78
+
+link   link-1   node-1   0.9   node-2   0.9   orf-0.16   null
+link   link-2   node-1   0.7   node-2   0.7   orf-0.16   null
+link   link-3   node-1   0.5   node-2   0.5   orf-0.16   null
+link   link-4   node-1   0.3   node-2   0.3   orf-0.16   null
+link   link-5   node-1   0.1   node-2   0.1   orf-0.16   null
+link   link-6   node-1  -0.1   node-2  -0.1   orf-0.16   null
+link   link-7   node-1  -0.3   node-2  -0.3   orf-0.16   null
+link   link-8   node-1  -0.5   node-2  -0.5   orf-0.16   null
+link   link-9   node-1  -0.7   node-2  -0.7   orf-0.16   null
+link   link-10  node-1  -0.9   node-2  -0.9   orf-0.16   null
+link   link-11  node-1  -1.0   node-2  -1.0   dor-1.60   null
+
+*********

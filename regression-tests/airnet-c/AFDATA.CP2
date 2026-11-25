@@ -1,0 +1,10 @@
+title constant power fan test #2: reverse direction of test #1
+
+node node-1 c 0.0 20.0 0.0
+node node-2 v 0.0 20.0
+
+element fan-A cpf 10.0 1.0 2.0
+element cpt1 plr 0.000399207 0.000399207 0.756938 0.5
+
+link link-1 node-2 0.0 node-1 0.0 fan-A null
+link link-2 node-2 0.0 node-1 0.0 cpt1 null

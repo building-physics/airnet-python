@@ -1,0 +1,10 @@
+{
+  "case": "FN4", "scenario": "fan aided by -800 Pa fixed-node pressure", "network": "AFDATA.FN1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.FN4", "source_run": 5,
+  "initial_node_pressures": {"node-2": 609.7236, "node-3": -800.0}, "link_controls": {"link-1": 1.0},
+  "run_control": {"maximum_iterations": 30, "relative_airflow_tolerance": 0.0001, "absolute_airflow_tolerance": 0.000001, "relaxation_coefficient": 0.75},
+  "expected_iterations": 4, "maximum_python_iterations": 8,
+  "nodes": {"node-1": {"pressure": 0.0}, "node-2": {"pressure": 431.3550}, "node-3": {"pressure": -800.0}},
+  "links": {"link-1": {"flow_count": 1, "pressure_drop": -431.3550, "flow0": 4.325153, "flow1": 0.0}, "link-2": {"flow_count": 1, "pressure_drop": 1231.355, "flow0": 4.325274, "flow1": 0.0}},
+  "tolerances": {"relative": 0.00003, "pressure_absolute": 0.03, "flow_absolute": 0.0002, "mass_balance_absolute": 0.0002}
+}

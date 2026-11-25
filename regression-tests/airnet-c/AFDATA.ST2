@@ -1,0 +1,13 @@
+/
+title  stack test #2 input file
+
+node   node-1    c   0.0    0.0    5.0
+node   node-2    c   0.0   20.0    0.0
+
+element  orf-0.01  plr  7.2e-6 7.2e-6 0.00848528 0.5
+
+link   link-1   node-1   0.0   node-2   0.0   orf-0.01   null
+link   link-2   node-1   0.0   node-2   5.0   orf-0.01   null
+link   link-3   node-1   0.0   node-2  -5.0   orf-0.01   null
+
+*********

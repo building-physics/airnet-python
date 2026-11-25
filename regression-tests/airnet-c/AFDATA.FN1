@@ -1,0 +1,13 @@
+title fan test #1 input file: comparison to Osborne problem #1
+
+node node-1 c 0.0 20.0 0.0
+node node-2 v 0.0 20.0
+node node-3 c 0.0 20.0 0.0
+
+element fan-A fan 8.1216e-06 8.1216e-06 0.00848528 0.5
+  1.204 764.429 5.46267 0.02 1 10000.0
+  764.429 -18.2932 19.4639 -7.63948 -10000.0
+element resst plr 3.0e-6 9.34e-06 0.11199 0.5
+
+link link-1 node-1 0.0 node-2 0.0 fan-A null
+link link-2 node-2 0.0 node-3 0.0 resst null

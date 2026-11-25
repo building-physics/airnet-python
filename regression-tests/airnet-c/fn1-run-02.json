@@ -1,0 +1,10 @@
+{
+  "case": "FN1", "scenario": "fan control 0.3 with prior-run property state", "network": "AFDATA.FN1",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.FN1", "source_run": 2,
+  "initial_node_pressures": {"node-2": 660.3155}, "link_controls": {"link-1": 0.3},
+  "run_control": {"maximum_iterations": 30, "relative_airflow_tolerance": 0.0001, "absolute_airflow_tolerance": 0.000001, "relaxation_coefficient": 0.75},
+  "expected_iterations": 6, "maximum_python_iterations": 8,
+  "nodes": {"node-1": {"pressure": 0.0}, "node-2": {"pressure": 59.34013}, "node-3": {"pressure": 0.0}},
+  "links": {"link-1": {"flow_count": 1, "pressure_drop": -59.34013, "flow0": 0.9497128, "flow1": 0.0}, "link-2": {"flow_count": 1, "pressure_drop": 59.34013, "flow0": 0.9497383, "flow1": 0.0}},
+  "tolerances": {"relative": 0.00001, "pressure_absolute": 0.002, "flow_absolute": 0.0001, "mass_balance_absolute": 0.0001}
+}

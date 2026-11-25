@@ -1,0 +1,57 @@
+{
+  "case": "DW2",
+  "network": "AFDATA.DW2",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.DW2",
+  "runs": [
+    {
+      "source_run": 1,
+      "run_control": {
+        "maximum_iterations": 30,
+        "relative_airflow_tolerance": 0.0001,
+        "absolute_airflow_tolerance": 1e-06,
+        "relaxation_coefficient": 0.75
+      },
+      "weather": {
+        "ambient_temperature_c": 20.0,
+        "barometric_pressure_pa": 101325.0,
+        "wind_speed_m_per_s": 0.0,
+        "wind_direction_degrees": 0.0
+      },
+      "expected_iterations": 2,
+      "nodes": {
+        "node-1": 40.0,
+        "node-2": 32.00253,
+        "node-3": 20.00158,
+        "node-4": 0.0
+      },
+      "links": {
+        "link-1": [
+          7.997474,
+          6.187524,
+          0.0
+        ],
+        "link-2": [
+          12.00095,
+          6.187524,
+          0.0
+        ],
+        "link-3": [
+          20.00158,
+          6.187524,
+          0.0
+        ],
+        "link-4": [
+          40.0,
+          6.188534,
+          0.0
+        ]
+      }
+    }
+  ],
+  "tolerances": {
+    "relative": 1e-06,
+    "pressure_absolute": 5e-07,
+    "flow_absolute": 1e-08,
+    "mass_balance_absolute": 1e-06
+  }
+}

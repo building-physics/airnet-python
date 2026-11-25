@@ -1,0 +1,38 @@
+{
+  "case": "WP2",
+  "scenario": "interpolated north and south profiles at 30 degrees",
+  "network": "AFDATA.WP2",
+  "wind_profiles": "WIND",
+  "source_report": "AIRNET-C/c/tests/reference/AFOUT.WP2",
+  "source_run": 2,
+  "run_control": {
+    "maximum_iterations": 30,
+    "relative_airflow_tolerance": 0.0001,
+    "absolute_airflow_tolerance": 0.000001,
+    "relaxation_coefficient": 0.75
+  },
+  "weather": {
+    "ambient_temperature_c": 20.0,
+    "barometric_pressure_pa": 101325.0,
+    "wind_speed_m_per_s": 5.0,
+    "wind_direction_degrees": 30.0
+  },
+  "expected_iterations": 4,
+  "nodes": {
+    "node-1": {"pressure": 0.0},
+    "node-2": {"pressure": 0.1275736},
+    "node-3": {"pressure": -0.1275332},
+    "node-4": {"pressure": 0.0}
+  },
+  "links": {
+    "link-1": {"flow_count": 1, "pressure_drop": 25.51075, "flow0": 0.004702922, "flow1": 0.0},
+    "link-2": {"flow_count": 1, "pressure_drop": 0.2551069, "flow0": 0.004702919, "flow1": 0.0},
+    "link-3": {"flow_count": 1, "pressure_drop": -25.51079, "flow0": -0.004702921, "flow1": 0.0}
+  },
+  "tolerances": {
+    "relative": 0.000001,
+    "pressure_absolute": 0.00005,
+    "flow_absolute": 0.00000001,
+    "mass_balance_absolute": 0.000001
+  }
+}

@@ -1,0 +1,40 @@
+/*subfile:  afdata.qf1  ******************************************************/
+/
+title  quadratic flow test #1 input file - QFR, PLR, & DWC duct models
+
+node   source    c   0.0   20.0    0.01
+node   duct-1    v   0.0   20.0
+node   duct-2    v   0.0   20.0
+node   dplr-1    v   0.0   20.0
+node   dplr-2    v   0.0   20.0
+node   dqfr-1    v   0.0   20.0
+node   dqfr-2    v   0.0   20.0
+node   sink      c   0.0   20.0    0.0
+
+element duct-2x25 dwc 2 0.25 0.0490874 0.0015 duct - 2m long by 25cm dia
+                      0 64   0 64
+element duct-3x25 dwc 3 0.25 0.0490874 0.0015 duct - 3m long by 25cd dia
+                      0 64   0 64
+element duct-5x25 dwc 5 0.25 0.0490874 0.0015 duct - 5m long by 25cm dia
+                      0 64   0 64
+element duct-10x25 dwc 10 0.25 0.0490874 0.0015 duct - 10m long by 25cm dia
+                      0 64   0 64
+element dplr-2x25 plr 3.40642e-05 3.40642e-05 0.133079 0.524431 plr-duct - 2m long by 25cm dia
+element dplr-3x25 plr 2.27095e-05 2.27095e-05 0.107587 0.524431 plr-duct - 3m long by 25cm dia
+element dplr-5x25 plr 1.36257e-05 1.36257e-05 0.0823032 0.524431 plr-duct - 5m long by 25cm dia
+element dqfr-2x25 qfr 0.310242 44.8089 qfr-duct - 2m long by 25cm dia
+element dqfr-3x25 qfr 0.465364 67.2134 qfr-duct - 3m long by 25cm dia
+element dqfr-5x25 qfr 0.775606 112.022 qfr-duct - 5m long by 25cm dia
+
+link   duct-0   source   0.0   sink     0.0   duct-10x25  null
+link   duct-1   source   0.0   duct-1   0.0   duct-2x25   null
+link   duct-2   duct-1   0.0   duct-2   0.0   duct-3x25   null
+link   duct-3   duct-2   0.0   sink     0.0   duct-5x25   null
+link   dplr-1   source   0.0   dplr-1   0.0   dplr-2x25   null
+link   dplr-2   dplr-1   0.0   dplr-2   0.0   dplr-3x25   null
+link   dplr-3   dplr-2   0.0   sink     0.0   dplr-5x25   null
+link   dqfr-1   source   0.0   dqfr-1   0.0   dqfr-2x25   null
+link   dqfr-2   dqfr-1   0.0   dqfr-2   0.0   dqfr-3x25   null
+link   dqfr-3   dqfr-2   0.0   sink     0.0   dqfr-5x25   null
+
+*********

@@ -1,0 +1,7 @@
+styles:
+  doc:
+    parent: bodytext
+  default-value:
+    parent: literal
+  keyword-only-separator:
+    parent: literal

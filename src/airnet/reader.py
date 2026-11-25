@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import enum
 
+
 class BadNetworkInput(Exception):
     pass
 
@@ -23,6 +24,28 @@ class InputType(enum.Enum):
 #    CKV = 7
 
 class Reader:
+    """Iterate over records in an AIRNET network-definition stream.
+
+    Parameters
+    ----------
+    fp:
+        An iterable text stream containing AIRNET records.
+    floats: bool, optional
+        Convert numeric fields to :class:`float` when true. When false,
+        validate numeric fields but retain their input strings.
+
+    Yields
+    ------
+    dict
+        One title, node, element, or link record at a time. The ``input_type``
+        value is an :class:`InputType` member.
+
+    Raises
+    ------
+    BadNetworkInput
+        If a recognized record is incomplete or contains invalid data.
+    """
+
     def __init__(self, fp, floats=True):
         self.fp = fp
         self.title = None
@@ -46,45 +69,53 @@ class Reader:
         try:
             float(value)
         except ValueError:
-            raise BadNetworkInput('Value "%s" for field "%s" of "%s" at line %d in not a float'
-                                  % (value, field, type, self.line_number))
+            raise BadNetworkInput(
+                f'Value "{value}" for field "{field}" of "{type}" at line '
+                f'{self.line_number:d} in not a float'
+            )
         return value
     
     def handle_float_as_float(self, type, field, value):
         try:
             return float(value)
         except ValueError:
-            raise BadNetworkInput('Float conversion of "%s" failed in "%s" for field "%s" at line %d'
-                                  % (value, type, field, self.line_number))
+            raise BadNetworkInput(
+                f'Float conversion of "{value}" failed in "{type}" for field '
+                f'"{field}" at line {self.line_number:d}'
+            )
 
     def __next__(self):
         next_line = self.get_next()
         while not next_line.startswith('*'):
             next_line = next_line.lstrip()
-            item_type, sep, rest = next_line.partition(' ')
+            item_type, _sep, rest = next_line.partition(' ')
             if item_type == 'title':
                 if self.title:
-                    raise BadNetworkInput('Found additional title at line %d' % self.line_number)
+                    raise BadNetworkInput(
+                        f'Found additional title at line {self.line_number:d}'
+                    )
                 else:
                     self.title = rest.strip()
                     return {'input_type': InputType.TITLE, 'title': self.title}
             
             if item_type == 'node':
-                name, sep, input_string = rest.lstrip().partition(' ')
+                name, _sep, input_string = rest.lstrip().partition(' ')
                 return self.read_node(name, input_string.lstrip())
 
             elif item_type == 'element':
-                name, sep, input_string = rest.lstrip().partition(' ')
-                element_type, sep, input_string = input_string.lstrip().partition(' ')
-                method_name = "read_%s" % element_type
+                name, _sep, input_string = rest.lstrip().partition(' ')
+                element_type, _sep, input_string = input_string.lstrip().partition(' ')
+                method_name = f'read_{element_type}'
                 try:
                     result = getattr(self, method_name)(name, input_string.lstrip())
                 except AttributeError:
-                    raise BadNetworkInput('Element type "%s" not recognized' % element_type)
+                    raise BadNetworkInput(
+                        f'Element type "{element_type}" not recognized'
+                    )
                 return result
             
             elif item_type == 'link':
-                name, sep, input_string = rest.lstrip().partition(' ')
+                name, _sep, input_string = rest.lstrip().partition(' ')
                 return self.read_link(name, input_string.lstrip())
             next_line = self.get_next()
         raise StopIteration
@@ -93,17 +124,24 @@ class Reader:
         data = input_string.split()
         # node name type ht temp pres
         if len(data) < 3:
-            raise BadNetworkInput('Node at line %d has fewer than 5 fields' % self.line_number)
+            raise BadNetworkInput(
+                f'Node at line {self.line_number:d} has fewer than 5 fields'
+            )
         # node name type ht temp pres
         if data[0] not in ['v', 'c', 'a']:
-            raise BadNetworkInput('Node type "%s" at line %d is unrecognized, must be "v", "c", or "a"' % (data[0], self.line_number))
+            raise BadNetworkInput(
+                f'Node type "{data[0]}" at line {self.line_number:d} is '
+                'unrecognized, must be "v", "c", or "a"'
+            )
         if data[0] == 'v':
             return {'input_type': InputType.NODE, 'name': name, 'type': data[0],
                     'ht': self.handle_float('node', 'ht', data[1]), 
                     'temp': self.handle_float('node', 'temp', data[2]),}
         else:
             if len(data) < 4:
-                raise BadNetworkInput('Node at line %d has fewer than 6 fields' % self.line_number)
+                raise BadNetworkInput(
+                    f'Node at line {self.line_number:d} has fewer than 6 fields'
+                )
             return {'input_type': InputType.NODE, 'name': name,
                     'type': data[0], 'ht': self.handle_float('node', 'ht', data[1]), 
                     'temp': self.handle_float('node', 'temp', data[2]),
@@ -114,13 +152,17 @@ class Reader:
         data = input_string.split()
         # link name node-l ht-l node-2 ht-2 element wind wpmod
         if len(data) < 6:
-            raise BadNetworkInput('Link at line %d has fewer than 8 fields' % self.line_number)
+            raise BadNetworkInput(
+                f'Link at line {self.line_number:d} has fewer than 8 fields'
+            )
         if data[5] == 'null':
             return {'input_type': InputType.LINK, 'name': name, 'node-1': data[0],
                     'ht-1': self.handle_float('link', 'ht-l', data[1]), 
                     'node-2': data[2], 'ht-2': self.handle_float('link', 'ht-2', data[3]), 'element': data[4]}
         if len(data) < 7:
-            raise BadNetworkInput('Link at line %d has fewer than 9 fields' % self.line_number)
+            raise BadNetworkInput(
+                f'Link at line {self.line_number:d} has fewer than 9 fields'
+            )
         return {'input_type': InputType.LINK, 'name': name, 'node-1': data[0], 
                 'ht-1': self.handle_float('link', 'ht-l', data[1]), 
                 'node-2': data[2], 'ht-2': self.handle_float('link', 'ht-2', data[3]), 'element': data[4],
@@ -130,7 +172,10 @@ class Reader:
         # element name plr init lam turb expt
         data = input_string.split()
         if len(data) < 4:
-            raise BadNetworkInput('Element type "plr" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+            raise BadNetworkInput(
+                f'Element type "plr" at line {self.line_number:d} has only '
+                f'{len(data) + 3:d} fields and cannot be a legal element'
+            )
         return {'input_type': InputType.ELEMENT, 'type': 'plr', 'name': name,
                 'init': self.handle_float('plr', 'init', data[0]), 'lam': self.handle_float('plr', 'lam', data[1]),
                 'turb': self.handle_float('plr', 'turb', data[2]), 'expt': self.handle_float('plr', 'expt', data[3])}
@@ -140,39 +185,54 @@ class Reader:
         #         tdlc lflc ldlc init
         data = input_string.split()
         if len(data) < 4:
-            raise BadNetworkInput('Element type "dwc" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+            raise BadNetworkInput(
+                f'Element type "dwc" at line {self.line_number:d} has only '
+                f'{len(data) + 3:d} fields and cannot be a legal element'
+            )
         obj = {'input_type': InputType.ELEMENT, 'type': 'dwc', 'name': name,
-               'len': self.handle_float('dwc', 'len', data[0]), 
-               'dh': self.handle_float('dwc', 'dh', data[1]), 'area': self.handle_float('dwc', 'area', data[2]),
-               'rgh': self.handle_float('dwc', 'rgh', data[3])}
+               'length': self.handle_float('dwc', 'length', data[0]),
+               'hdia': self.handle_float('dwc', 'hdia', data[1]),
+               'area': self.handle_float('dwc', 'area', data[2]),
+               'rough': self.handle_float('dwc', 'rough', data[3])}
         try:
             next_line = self.get_next()
         except StopIteration:
-            raise BadNetworkInput('Element type "dwc" at line %d has only one line and cannot be a legal element' % self.line_number)
+            raise BadNetworkInput(
+                f'Element type "dwc" at line {self.line_number:d} has only '
+                'one line and cannot be a legal element'
+            )
         data = next_line.split()
         if len(data) < 4:
-            raise BadNetworkInput('Element type "dwc" with second line at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
+            raise BadNetworkInput(
+                f'Element type "dwc" with second line at line '
+                f'{self.line_number:d} has only {len(data):d} fields and '
+                'cannot be a legal element'
+            )
         obj['tdlc'] = self.handle_float('dwc', 'tdlc', data[0]) 
-        obj['lflc'] = self.handle_float('dwc', 'lfdc', data[1])
+        obj['lflc'] = self.handle_float('dwc', 'lflc', data[1])
         obj['ldlc'] = self.handle_float('dwc', 'ldlc', data[2]) 
-        obj['init'] = self.handle_float('dwc', 'init', data[3])
+        obj['linit'] = self.handle_float('dwc', 'linit', data[3])
         return obj
     def read_dor(self, name, input_string):
         # element name dor init lam turb expt
         #         dtmin ht wd cd
         data = input_string.split()
         if len(data) < 4:
-            raise BadNetworkInput('Element type "dor" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+            raise BadNetworkInput(f'Element type "dor" at line {self.line_number} has only {len(data)+3} fields and cannot be a legal element')
         obj = {'input_type': InputType.ELEMENT, 'type': 'dor', 'name': name,
                'init': self.handle_float('dor', 'init', data[0]), 'lam': self.handle_float('dor', 'lam', data[1]),
                'turb': self.handle_float('dor', 'turb', data[2]), 'expt': self.handle_float('dor', 'expt', data[3])}
         try:
             next_line = self.get_next()
         except StopIteration:
-            raise BadNetworkInput('Element type "dor" at line %d has only one line and cannot be a legal element' % self.line_number)
+            raise BadNetworkInput(f'Element type "dor" at line {self.line_number} has only one line and cannot be a legal element')
         data = next_line.split()
         if len(data) < 4:
-            raise BadNetworkInput('Element type "dor" with second line at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
+            raise BadNetworkInput(
+                f'Element type "dor" with second line at line '
+                f'{self.line_number:d} has only {len(data):d} fields and '
+                'cannot be a legal element'
+            )
         obj['dtmin'] = self.handle_float('dor', 'dtmin', data[0]) 
         obj['ht'] = self.handle_float('dor', 'ht', data[1])
         obj['wd'] = self.handle_float('dor', 'wd', data[2]) 
@@ -183,7 +243,7 @@ class Reader:
         # element name cfr flow
         string = input_string.partition(' ')[0].strip()
         if not string:
-            raise BadNetworkInput('Element type "cfr" at line %d has only 3 fields and cannot be a legal element' % self.line_number)
+            raise BadNetworkInput(f'Element type "cfr" at line {self.line_number} has only 3 fields and cannot be a legal element')
         return {'input_type': InputType.ELEMENT, 'type': 'cfr', 'name': name,
                 'flow': self.handle_float('cfd', 'flow', string)}
     
@@ -194,18 +254,28 @@ class Reader:
         #         a2l a22 a23 a24 mf3
         #         ... ... ... ... mfn
         data = input_string.split()
-        if len(data) < 7:
-            raise BadNetworkInput('Element type "fan" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+        if len(data) < 4:
+            raise BadNetworkInput(
+                f'Element type "fan" at line {self.line_number:d} has only '
+                f'{len(data) + 3:d} fields and cannot be a legal element'
+            )
         obj = {'input_type': InputType.ELEMENT, 'type': 'fan', 'name': name,
                'init': self.handle_float('fan', 'init', data[0]), 'lam': self.handle_float('fan', 'lam', data[1]),
                'turb': self.handle_float('fan', 'turb', data[2]), 'expt': self.handle_float('fan', 'expt', data[3])}
         try:
             next_line = self.get_next()
         except StopIteration:
-            raise BadNetworkInput('Element type "fan" at line %d has only one line and cannot be a legal element' % self.line_number)
+            raise BadNetworkInput(
+                f'Element type "fan" at line {self.line_number:d} has only '
+                'one line and cannot be a legal element'
+            )
         data = next_line.split()
         if len(data) < 6:
-            raise BadNetworkInput('Element type "dwc" with second line at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
+            raise BadNetworkInput(
+                f'Element type "dwc" with second line at line '
+                f'{self.line_number:d} has only {len(data):d} fields and '
+                'cannot be a legal element'
+            )
         obj['rdens'] = self.handle_float('fan', 'rdens', data[0]) 
         obj['fdf'] = self.handle_float('fan', 'fdf', data[1])
         obj['sop'] = self.handle_float('fan', 'sop', data[2]) 
@@ -217,15 +287,22 @@ class Reader:
             try:
                 next_line = self.get_next()
             except StopIteration:
-                raise BadNetworkInput('Element type "fan" at line %d has insufficient lines of data and cannot be a legal element' % self.line_number)
+                raise BadNetworkInput(
+                    f'Element type "fan" at line {self.line_number:d} has '
+                    'insufficient lines of data and cannot be a legal element'
+                )
             data = next_line.split()
             if len(data) < 5:
-                raise BadNetworkInput('Element type "fan" data point at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)))
-            pts.append({'a1': self.handle_float('fan', 'a1%d' % (i+1), data[0]),
-                        'a2': self.handle_float('fan', 'a2%d' % (i+1), data[1]),
-                        'a3': self.handle_float('fan', 'a3%d' % (i+1), data[3]),
-                        'a4': self.handle_float('fan', 'a4%d' % (i+1), data[4]), 
-                        'mf': self.handle_float('fan', 'mf%d' % (i+1), data[4])})
+                raise BadNetworkInput(
+                    f'Element type "fan" data point at line '
+                    f'{self.line_number:d} has only {len(data):d} fields and '
+                    'cannot be a legal element'
+                )
+            pts.append({'a1': self.handle_float('fan', f'a1{i + 1:d}', data[0]),
+                        'a2': self.handle_float('fan', f'a2{i + 1:d}', data[1]),
+                        'a3': self.handle_float('fan', f'a3{i + 1:d}', data[2]),
+                        'a4': self.handle_float('fan', f'a4{i + 1:d}', data[3]),
+                        'mf': self.handle_float('fan', f'mf{i + 1:d}', data[4])})
         obj['pts'] = pts
         return obj
     
@@ -233,7 +310,10 @@ class Reader:
         # element name cpf upo prmin ftype
         data = input_string.split()
         if len(data) < 3:
-            raise BadNetworkInput('Element type "cpf" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+            raise BadNetworkInput(
+                f'Element type "cpf" at line {self.line_number:d} has only '
+                f'{len(data) + 3:d} fields and cannot be a legal element'
+            )
         return {'input_type': InputType.ELEMENT, 'type': 'cpf', 'name': name,
                 'upo': self.handle_float('cpf', 'upo', data[0]),
                 'prmin': self.handle_float('cpf', 'prmin', data[1]), 'ftyp': self.handle_float('cpf', 'ftyp', data[2])}
@@ -242,7 +322,10 @@ class Reader:
         # element name qfr a b
         data = input_string.split()
         if len(data) < 2:
-            raise BadNetworkInput('Element type "qfr" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+            raise BadNetworkInput(
+                f'Element type "qfr" at line {self.line_number:d} has only '
+                f'{len(data) + 3:d} fields and cannot be a legal element'
+            )
         return {'input_type': InputType.ELEMENT, 'type': 'qfr', 'name': name, 
                 'a': self.handle_float('qfr', 'a', data[0]), 'b': self.handle_float('qfr', 'b', data[1])}
     
@@ -250,6 +333,9 @@ class Reader:
         # element name ckv dp0 coef
         data = input_string.split()
         if len(data) < 2:
-            raise BadNetworkInput('Element type "ckv" at line %d has only %d fields and cannot be a legal element' % (self.line_number, len(data)+3))
+            raise BadNetworkInput(
+                f'Element type "ckv" at line {self.line_number:d} has only '
+                f'{len(data) + 3:d} fields and cannot be a legal element'
+            )
         return {'input_type': InputType.ELEMENT, 'type': 'ckv', 'name': name, 
                 'dp0': self.handle_float('ckv', 'dp0', data[0]), 'coef': self.handle_float('ckv', 'coef', data[1])}
